@@ -1,5 +1,9 @@
-import logging
 from fastapi import FastAPI, UploadFile
+from faster_whisper import WhisperModel
+
+import logging
+from constants import ALLOWED_TYPES
+
 # ### Phase 1 — Core transcription (Week 1)
 # **Goal:** POST an audio file, get transcript text back synchronously.
 
@@ -12,8 +16,15 @@ from fastapi import FastAPI, UploadFile
 
 model_size = 'small'
 
-
 app = FastAPI()
+model = WhisperModel(model_size, device='cpu', compute_type="int8")
+
+
+def transcribe_file(file: UploadFile){
+    segments, info = model.transcribe(file, beam_size=5)
+    
+}
+
 
 @app.post('/transcribe')
 async def transcribe(file: UploadFile): #here we get a file
@@ -21,6 +32,13 @@ async def transcribe(file: UploadFile): #here we get a file
     file_size = file.size
     file_headers = file.headers
     content_type = file.content_type # we need this one
+
+    # later agg a link
+    if content_type in ALLOWED_TYPES:
+        res = transcribe_file(file)
+        return {"result": res}
+    else:
+        raise TypeError(f"{content_type} doesn't supported")
     return {
         "file_name": file_name,
         "file_size": file_size,
