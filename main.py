@@ -1,5 +1,6 @@
-from fastapi import FastAPI, UploadFile
+from fastapi import FastAPI, UploadFile, Request, HTTPException
 from faster_whisper import WhisperModel
+from user_agents import parse
 
 from datetime import timedelta
 from pathlib import Path
@@ -7,7 +8,7 @@ import logging
 import os
 import shutil
 
-from constants import ALLOWED_TYPES
+from constants import ALLOWED_TYPES, BROWSER_REQUESTS, CLI_REQUESTS
 import utils
 
 os.environ["HF_HUB_OFFLINE"] = "1"
@@ -68,19 +69,45 @@ def parse_res(all_segments: dict, info: dict):
 
 
 
-
 @app.post('/transcribe')
-async def transcribe(file: UploadFile): #here we get a file
+async def transcribe(request: Request, file: UploadFile): 
+
+    # 1. define from there the request was send
+    user_agent_header = request.headers.get('user-agent')
+    user_agent = parse(user_agent_header)
+
+    source_family = user_agent.browser.family
+    
+    print(f"source: {source_family}")
+
+    if source_family in CLI_REQUESTS:
+        # if it's here -> it can send only 1) links to sites-media (paths to media  (later))
+        #here, a user sends a file. we can handle it as an ordinary file.. or this file go to the uplaodfile ahead?
+        pass
+    elif source_family in BROWSER_REQUESTS:
+        # if it's here -> it should accept a file (for now. later can try to use links)
+        pass
+    else:
+        raise HTTPException(status_code=403, detail='Forbidden')
+
+    # print(f"headers: {request.headers.get('user-agent')}")
+    # print(f"AUDIT: {request.client.host} is uploading {file.filename}")
+    # print(f"IP: {request.client.host}")
+    #here we get a file
     # file_size = file.size
+
     content_type = file.content_type # we need this one
+
 
     # later agg a link
     if content_type in ALLOWED_TYPES:
         res, info = transcribe_file(file)
-        parsed_res = parse_res(res, info)
+        parsed_res_info = parse_res(res, info)
+
+        res = utils.convert_to_uploadfile(parsed_res_info)
         # how to output it?
 
-        return {"result": parsed_res}
+        return {"result": res}
     else:
         raise TypeError(f"{content_type} doesn't supported")
 

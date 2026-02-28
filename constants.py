@@ -25,3 +25,19 @@ ALLOWED_TYPES = {
     "video/x-flv": "flv",
     "video/x-ms-wmv": "wmv"
 }
+
+BROWSER_REQUESTS = {
+    'Chrome': 'Chrome',
+    'Chrome Mobile': 'Chrome',
+    'Firefox' : 'Firefox',
+    'Firefox Mobile': 'Firefox',
+    'Safari Mobile': 'Safari',
+    'Safari': 'Safari',
+    'Edge': 'Edge',
+}
+
+CLI_REQUESTS = {
+    'curl': 'curl',
+    'python-requests': 'python-requests',
+    'PostmanRuntime': 'PostmanRuntime',
+}
