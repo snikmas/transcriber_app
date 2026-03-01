@@ -80,6 +80,21 @@ async def transcribe(request: Request, file: UploadFile):
     
     print(f"source: {source_family}")
 
+    # content_type = file.content_type # could be mfaked, need to check magic bytes
+    content_type = utils.determine_type(file)
+
+    # later agg a link + divide: for video you need to extract the audio
+    if content_type in ALLOWED_TYPES:
+        res, info = transcribe_file(file)
+        parsed_res_info = parse_res(res, info)
+
+        res = utils.convert_to_uploadfile(parsed_res_info)
+
+        # return {"result": res}
+    else:
+        raise TypeError(f"{content_type} doesn't supported")
+
+
     if source_family in CLI_REQUESTS:
         # if it's here -> it can send only 1) links to sites-media (paths to media  (later))
         #here, a user sends a file. we can handle it as an ordinary file.. or this file go to the uplaodfile ahead?
@@ -89,25 +104,3 @@ async def transcribe(request: Request, file: UploadFile):
         pass
     else:
         raise HTTPException(status_code=403, detail='Forbidden')
-
-    # print(f"headers: {request.headers.get('user-agent')}")
-    # print(f"AUDIT: {request.client.host} is uploading {file.filename}")
-    # print(f"IP: {request.client.host}")
-    #here we get a file
-    # file_size = file.size
-
-    content_type = file.content_type # we need this one
-
-
-    # later agg a link
-    if content_type in ALLOWED_TYPES:
-        res, info = transcribe_file(file)
-        parsed_res_info = parse_res(res, info)
-
-        res = utils.convert_to_uploadfile(parsed_res_info)
-        # how to output it?
-
-        return {"result": res}
-    else:
-        raise TypeError(f"{content_type} doesn't supported")
-

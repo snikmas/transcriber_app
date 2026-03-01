@@ -1,6 +1,7 @@
 from datetime import timedelta
 from pathlib import Path
 from fastapi import UploadFile
+import magic
 
 def formatting_seconds(seconds: int) -> str:
     # timedelta takes seconds as an argument
@@ -17,3 +18,12 @@ def convert_to_uploadfile(parsed_res_info: Path) -> UploadFile:
             )
         
     return upload_file
+
+
+async def determine_type(file: UploadFile) -> str:
+
+    buffer = await file.read(2048)
+    await file.seek(0)
+    return magic.from_buffer(buffer, mime=True)
+
+
