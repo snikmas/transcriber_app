@@ -1,6 +1,6 @@
 FILE INFO: 
 Language: EN
-Language Probability: 97.9%
+Language Probability: None
 Duration: 0:03:29
 
 TRANSCRIPTION:
@@ -33,4 +33,3 @@ TRANSCRIPTION:
 [0:03:10 -> 0:03:15]:  Let me remind you of the wonderful code of today.
 [0:03:15 -> 0:03:20]:  As you breathe right now, another person takes their last.
 [0:03:20 -> 0:03:25]:  Stop complaining and learn to live life with what you have.
-

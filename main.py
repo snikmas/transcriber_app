@@ -1,4 +1,4 @@
-from fastapi import FastAPI, UploadFile, Request, HTTPException
+from fastapi import FastAPI, UploadFile, Request, HTTPException, Response
 from faster_whisper import WhisperModel
 from user_agents import parse
 
@@ -20,8 +20,8 @@ logging.basicConfig(level=logging.INFO)
 # - [X] FastAPI skeleton with single `POST /transcribe` endpoint
 # - [X] Install faster-whisper, load `small` model at startup -< change for tiny for now
 # - [X] Accept mp3/wav upload, run Whisper, return text in response
-# - [ ] Basic input validation (file type, size)
-# - [ ] Test with curl: `curl -X POST /transcribe -F "file=@clip.mp3"`
+# - [X] Basic input validation (file type, size)
+# - [X] Test with curl: `curl -X POST /transcribe -F "file=@clip.mp3"`
 
 
 model_size = 'tiny'
@@ -32,7 +32,7 @@ model = WhisperModel(model_size, device='cpu', compute_type="int8")
 base_dir = Path(__file__).resolve().parent
 temp_dir = base_dir / 'temp_dir'
 
-def transcribe_file(file: UploadFile):
+def transcribe_file(file: UploadFile) -> tuple[dict, dict]:
 
     # 2 options:
     # 1. save the file and read it
@@ -51,23 +51,35 @@ def transcribe_file(file: UploadFile):
                 temp_file.unlink()
 
 
-def parse_res(all_segments: dict, info: dict):  
+def parse_to_file(full_info: dict):  
     
     temp_file = temp_dir / f"temp_res.txt"
 
     with open (temp_file, 'w') as f:
-        f.write(f"FILE INFO: \nLanguage: {info.language.upper()}\nLanguage Probability: {info.language_probability:.1%}\nDuration: {utils.formatting_seconds(info.duration)}\n\nTRANSCRIPTION:\n")
+        f.write(f"FILE INFO: \nLanguage: {full_info.get("language")}\nLanguage Probability: {full_info.get("language_probability")}\nDuration: {full_info.get("duration")}\n\nTRANSCRIPTION:\n")
 
-        for s in all_segments:
-            start_t = utils.formatting_seconds(s.start)
-            end_t = utils.formatting_seconds(s.end)
-            f.write(f'[{start_t} -> {end_t}]: {s.text}\n')
-
-
-        f.write('\n')
+        f.write(full_info.get('transcript'))
     return temp_file
 
 
+def parsed_res(all_segments: dict, info: dict) -> dict:
+    text = '' # but what if the thext is large?
+    for s in all_segments:
+        start_t = utils.formatting_seconds(s.start)
+        end_t = utils.formatting_seconds(s.end)
+        text += f"[{start_t} -> {end_t}]: {s.text}\n"
+    return {
+        "filename": "i dont know lil",
+        "duration": utils.formatting_seconds(info.duration),
+        "language": info.language.upper(),
+        "Language Provavility": f"{info.language_probability:.1%}",
+        "transcript": text
+    }
+    
+
+@app.get('/flavicon.iso', include_in_schema=False)
+async def flavicon():
+    return Response(status_code=204)
 
 @app.post('/transcribe')
 async def transcribe(request: Request, file: UploadFile): 
@@ -81,26 +93,27 @@ async def transcribe(request: Request, file: UploadFile):
     print(f"source: {source_family}")
 
     # content_type = file.content_type # could be mfaked, need to check magic bytes
-    content_type = utils.determine_type(file)
+    content_type = await utils.determine_type(file)
 
     # later agg a link + divide: for video you need to extract the audio
     if content_type in ALLOWED_TYPES:
         res, info = transcribe_file(file)
-        parsed_res_info = parse_res(res, info)
-
-        res = utils.convert_to_uploadfile(parsed_res_info)
-
+        # parsed_res_info = parse_res(res, info)
+        # res = utils.convert_to_uploadfile(parsed_res_info)
         # return {"result": res}
     else:
         raise TypeError(f"{content_type} doesn't supported")
 
-
+    res_parse_cli = parsed_res(res, info)
     if source_family in CLI_REQUESTS:
-        # if it's here -> it can send only 1) links to sites-media (paths to media  (later))
-        #here, a user sends a file. we can handle it as an ordinary file.. or this file go to the uplaodfile ahead?
-        pass
+        return res_parse_cli
     elif source_family in BROWSER_REQUESTS:
         # if it's here -> it should accept a file (for now. later can try to use links)
-        pass
+        file = parse_to_file(res_parse_cli)
+        return {
+
+            "content": res_parse_cli,
+            "download_url": file
+        }
     else:
         raise HTTPException(status_code=403, detail='Forbidden')
