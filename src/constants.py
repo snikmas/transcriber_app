@@ -1,14 +1,11 @@
 from enum import Enum
 
-
-
-
 class Job_Status(Enum):
-    FAILED = "failed", 
-    DONE = "done", 
-    PROCESSING = "processing", 
-    QUEUED = "queued",
-    
+    FAILED = "failed"
+    DONE = "done"
+    PROCESSING = "processing"
+    QUEUED = "queued"
+
 
 
 ALLOWED_TYPES = {

@@ -1,4 +1,4 @@
-from fastapi import FastAPI, UploadFile, Request, HTTPException, Response
+from fastapi import FastAPI, UploadFile, Request, HTTPException, Response, status
 from faster_whisper import WhisperModel
 from user_agents import parse
 from contextlib import asynccontextmanager
@@ -24,15 +24,12 @@ logging.basicConfig(level=logging.INFO)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # runs right now
-    thread = threading.Thread(worker.worker, daemon=True)
-    worker.worker()
-
+    thread = threading.Thread(target=worker.worker, daemon=True)
+    thread.start()
     yield
     
 
-
 app = FastAPI(lifespan=lifespan)
-
 
 
 @app.get('/favicon.ico', include_in_schema=False)
@@ -41,13 +38,14 @@ async def flavicon():
 
 
 
-@app.get('/transcribe/{job_id}')
-async def get_transcribe_res(job_id: int):
+@app.get('/transcribe/{job_id}', status_code=200)
+async def get_transcribe_res(job_id: str) -> dict:
     job = jobs.get_job(job_id)
     match job.get('status'):
         case Job_Status.PROCESSING.value:
-            pass
+            return {"message": "in process..."}
         case Job_Status.FAILED.value:
+            return {"message": "the process is failed"}
             pass
         case Job_Status.DONE.value:
             if job.get("source") in CLI_REQUESTS:
@@ -55,11 +53,11 @@ async def get_transcribe_res(job_id: int):
             else:
                 return {"content": job.get("content")}
             # needs to delete from hte jobs?
-            
 
 
-@app.post('/transcribe') # here we create a job
-async def transcribe(request: Request, file: UploadFile): 
+
+@app.post('/transcribe', status_code=201) # here we create a job
+async def transcribe(request: Request, file: UploadFile, response: Response): 
 
     # 1. determine from there the request was send
     user_agent_header = request.headers.get('user-agent')
@@ -76,12 +74,20 @@ async def transcribe(request: Request, file: UploadFile):
         try:
             file_path = parsers.save_file(file)
         except:
+            response.status_code = status.HTTP_400_BAD_REQUEST
             raise Exception("Error during saving a file")
     
         # 3. create a job
-        jobs.create_job(file_path, file.filename, source_family)
+        jobs_id = jobs.create_job(file_path, file.filename, source_family)
         logging.info("Job created")
+        return jobs_id
 
     else:
+        response.status_code = status.HTTP_415_UNSUPPORTED_MEDIA_TYPE
         raise HTTPException(status_code=415, detail={"message": f"{content_type} doesn't supported"})
 
+@app.get("/jobs", status_code=200)
+async def get_all_jobs():
+    all_jobs = jobs.all_jobs
+
+    return all_jobs
