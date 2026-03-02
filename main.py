@@ -7,8 +7,9 @@ from datetime import timedelta
 from pathlib import Path
 import logging
 import os
+import threading
 
-from src.constants import ALLOWED_TYPES, BROWSER_REQUESTS, CLI_REQUESTS, Job_State
+from src.constants import ALLOWED_TYPES, BROWSER_REQUESTS, CLI_REQUESTS, Job_Status
 import src.parsers as parsers
 import src.utils as utils
 import src.jobs as jobs
@@ -23,14 +24,11 @@ logging.basicConfig(level=logging.INFO)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # runs right now
+    thread = threading.Thread(worker.worker, daemon=True)
     worker.worker()
 
-    #runs after temrinating the project
     yield
     
-
-
-
 
 
 app = FastAPI(lifespan=lifespan)
@@ -45,13 +43,23 @@ async def flavicon():
 
 @app.get('/transcribe/{job_id}')
 async def get_transcribe_res(job_id: int):
-    pass
-
+    job = jobs.get_job(job_id)
+    match job.get('status'):
+        case Job_Status.PROCESSING.value:
+            pass
+        case Job_Status.FAILED.value:
+            pass
+        case Job_Status.DONE.value:
+            if job.get("source") in CLI_REQUESTS:
+                return {"content": job.get('content'), "download_url": job.get('download_url')} # or just put the last 2 lines frmo the dict?
+            else:
+                return {"content": job.get("content")}
+            # needs to delete from hte jobs?
+            
 
 
 @app.post('/transcribe') # here we create a job
 async def transcribe(request: Request, file: UploadFile): 
-
 
     # 1. determine from there the request was send
     user_agent_header = request.headers.get('user-agent')
@@ -71,24 +79,9 @@ async def transcribe(request: Request, file: UploadFile):
             raise Exception("Error during saving a file")
     
         # 3. create a job
-        jobs.create_job(file_path)
+        jobs.create_job(file_path, file.filename, source_family)
         logging.info("Job created")
 
-
-        # res, info = parsers.transcribe_file(file) not here
     else:
         raise HTTPException(status_code=415, detail={"message": f"{content_type} doesn't supported"})
-
-    res_parse_cli = parsers.parsed_res(res, info, file.filename)
-    if source_family in CLI_REQUESTS:
-        return res_parse_cli
-    elif source_family in BROWSER_REQUESTS:
-        file = parsers.parse_to_file(res_parse_cli)
-        return {
-            "content": res_parse_cli,
-            "download_url": file
-        }
-    else:
-        raise HTTPException(status_code=403, detail='Forbidden')
-
 
