@@ -1,119 +1,94 @@
 from fastapi import FastAPI, UploadFile, Request, HTTPException, Response
 from faster_whisper import WhisperModel
 from user_agents import parse
+from contextlib import asynccontextmanager
 
 from datetime import timedelta
 from pathlib import Path
 import logging
 import os
-import shutil
 
-from constants import ALLOWED_TYPES, BROWSER_REQUESTS, CLI_REQUESTS
-import utils
+from src.constants import ALLOWED_TYPES, BROWSER_REQUESTS, CLI_REQUESTS, Job_State
+import src.parsers as parsers
+import src.utils as utils
+import src.jobs as jobs
+import src.worker as worker
 
 os.environ["HF_HUB_OFFLINE"] = "1"
 logging.basicConfig(level=logging.INFO)
 
-# ### Phase 1 — Core transcription (Week 1)
-# **Goal:** POST an audio file, get transcript text back synchronously.
-
-# - [X] FastAPI skeleton with single `POST /transcribe` endpoint
-# - [X] Install faster-whisper, load `small` model at startup -< change for tiny for now
-# - [X] Accept mp3/wav upload, run Whisper, return text in response
-# - [X] Basic input validation (file type, size)
-# - [X] Test with curl: `curl -X POST /transcribe -F "file=@clip.mp3"`
 
 
-model_size = 'tiny'
+# WORKER
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # runs right now
+    worker.worker()
 
-app = FastAPI()
-model = WhisperModel(model_size, device='cpu', compute_type="int8")
-
-base_dir = Path(__file__).resolve().parent
-temp_dir = base_dir / 'temp_dir'
-
-def transcribe_file(file: UploadFile) -> tuple[dict, dict]:
-
-    # 2 options:
-    # 1. save the file and read it
-    # 2. read its bytes. requires more RAM, faster
-    temp_file = temp_dir / f"temp_{file.filename}"
-    
-    with open (temp_file, 'wb') as buffer:
-        shutil.copyfileobj(file.file, buffer)
-    
-    try: 
-        segments, info = model.transcribe(temp_file, vad_filter=True)
-        all_segments = list(segments)
-        return all_segments, info
-    finally:
-            if (temp_file.exists()):
-                temp_file.unlink()
-
-
-def parse_to_file(full_info: dict):  
-    
-    temp_file = temp_dir / f"temp_res.txt"
-
-    with open (temp_file, 'w') as f:
-        f.write(f"FILE INFO: \nLanguage: {full_info.get("language")}\nLanguage Probability: {full_info.get("language_probability")}\nDuration: {full_info.get("duration")}\n\nTRANSCRIPTION:\n")
-
-        f.write(full_info.get('transcript'))
-    return temp_file
-
-
-def parsed_res(all_segments: dict, info: dict) -> dict:
-    text = '' # but what if the thext is large?
-    for s in all_segments:
-        start_t = utils.formatting_seconds(s.start)
-        end_t = utils.formatting_seconds(s.end)
-        text += f"[{start_t} -> {end_t}]: {s.text}\n"
-    return {
-        "filename": "i dont know lil",
-        "duration": utils.formatting_seconds(info.duration),
-        "language": info.language.upper(),
-        "Language Provavility": f"{info.language_probability:.1%}",
-        "transcript": text
-    }
+    #runs after temrinating the project
+    yield
     
 
-@app.get('/flavicon.iso', include_in_schema=False)
+
+
+
+
+app = FastAPI(lifespan=lifespan)
+
+
+
+@app.get('/favicon.ico', include_in_schema=False)
 async def flavicon():
     return Response(status_code=204)
 
-@app.post('/transcribe')
+
+
+@app.get('/transcribe/{job_id}')
+async def get_transcribe_res(job_id: int):
+    pass
+
+
+
+@app.post('/transcribe') # here we create a job
 async def transcribe(request: Request, file: UploadFile): 
 
-    # 1. define from there the request was send
+
+    # 1. determine from there the request was send
     user_agent_header = request.headers.get('user-agent')
     user_agent = parse(user_agent_header)
 
     source_family = user_agent.browser.family
     
-    print(f"source: {source_family}")
-
-    # content_type = file.content_type # could be mfaked, need to check magic bytes
     content_type = await utils.determine_type(file)
 
-    # later agg a link + divide: for video you need to extract the audio
+    # later add a link + divide: for video you need to extract the audio
     if content_type in ALLOWED_TYPES:
-        res, info = transcribe_file(file)
-        # parsed_res_info = parse_res(res, info)
-        # res = utils.convert_to_uploadfile(parsed_res_info)
-        # return {"result": res}
-    else:
-        raise TypeError(f"{content_type} doesn't supported")
+        
+        # 2. save to the disk
+        try:
+            file_path = parsers.save_file(file)
+        except:
+            raise Exception("Error during saving a file")
+    
+        # 3. create a job
+        jobs.create_job(file_path)
+        logging.info("Job created")
 
-    res_parse_cli = parsed_res(res, info)
+
+        # res, info = parsers.transcribe_file(file) not here
+    else:
+        raise HTTPException(status_code=415, detail={"message": f"{content_type} doesn't supported"})
+
+    res_parse_cli = parsers.parsed_res(res, info, file.filename)
     if source_family in CLI_REQUESTS:
         return res_parse_cli
     elif source_family in BROWSER_REQUESTS:
-        # if it's here -> it should accept a file (for now. later can try to use links)
-        file = parse_to_file(res_parse_cli)
+        file = parsers.parse_to_file(res_parse_cli)
         return {
-
             "content": res_parse_cli,
             "download_url": file
         }
     else:
         raise HTTPException(status_code=403, detail='Forbidden')
+
+
