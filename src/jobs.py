@@ -20,15 +20,15 @@ def create_job(file_path: Path, filename:str, source_family: str) -> dict:
     uuid_id = uuid.uuid4()
     job = {
         "filename": filename,
-        "status": Job_Status.QUEUED,
+        "status": Job_Status.QUEUED.value,
         "path": file_path,
         "source": source_family,
         "created_at": datetime.now()
         
     }
     with lock:
-        all_jobs[uuid_id] = job
-    queue.put(uuid_id) # need only its id
+        all_jobs[str(uuid_id)] = job
+    queue.put(str(uuid_id)) # need only its id
     return uuid_id
 
 
@@ -47,4 +47,4 @@ def update_status(job_id: str, status: Job_Status):
         job = all_jobs.get(job_id)
         if job is None:
             raise HTTPException(404)
-        job['status'] = status
+        job['status'] = status.value

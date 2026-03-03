@@ -1,26 +1,27 @@
 import src.parsers as parsers
-import jobs
+import src.jobs as jobs
 
-from fastapi import HTTPException
 import src.constants as const
+import logging
 
 
 # too many logic?
 def worker():
     while True:
         job_id = jobs.queue.get()
-
         job = jobs.all_jobs[job_id]
-        jobs.update_status(job["job_id"], const.Job_Status.PROCESSING)
+        jobs.update_status(job_id, const.Job_Status.PROCESSING)
 
         path = job.get("path")
         source_family = job.get("source")
 
         try:
             res, info = parsers.transcribe_file(path)
-        except:
-            raise Exception("Error during transcribing a file")
-
+        except Exception as e:
+            jobs.update_status(job_id, const.Job_Status.FAILED)
+            logging.error("Tranctiption failed job %s: %s", job_id, e)
+            continue
+        
         # path in the job -> 
         res_parse_cli = parsers.parsed_res(res, info, job.get("filename"))
 
@@ -32,8 +33,8 @@ def worker():
             job['content'] = res_parse_cli
             job['download_url'] = file
         else:
-            jobs.update_status(job.get('job_id'), const.Job_Status.FAILED)
-            raise HTTPException(status_code=403, detail='Forbidden')
-        
+            jobs.update_status(job_id, const.Job_Status.FAILED)
+            logging.error("The request is not in CLI/BROWSERS types")
+            continue    
 
-        jobs.update_status(job.get('job_id'), const.Job_Status.DONE)
+        jobs.update_status(job_id, const.Job_Status.DONE)

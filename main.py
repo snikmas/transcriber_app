@@ -18,8 +18,6 @@ import src.worker as worker
 os.environ["HF_HUB_OFFLINE"] = "1"
 logging.basicConfig(level=logging.INFO)
 
-
-
 # WORKER
 @asynccontextmanager
 async def lifespan(app: FastAPI):
