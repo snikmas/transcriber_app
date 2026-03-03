@@ -1,13 +1,11 @@
 from fastapi import FastAPI, UploadFile, Request, HTTPException, Response, status
-from faster_whisper import WhisperModel
 from user_agents import parse
 from contextlib import asynccontextmanager
 
-from datetime import timedelta
-from pathlib import Path
 import logging
 import os
 import threading
+os.environ["HF_HUB_OFFLINE"] = "1" # the model in the parser, have to tell it: it should run offline
 
 from src.constants import ALLOWED_TYPES, BROWSER_REQUESTS, CLI_REQUESTS, Job_Status
 import src.parsers as parsers
@@ -15,7 +13,6 @@ import src.utils as utils
 import src.jobs as jobs
 import src.worker as worker
 
-os.environ["HF_HUB_OFFLINE"] = "1"
 logging.basicConfig(level=logging.INFO)
 
 # WORKER
@@ -42,6 +39,8 @@ async def get_transcribe_res(job_id: str) -> dict:
     match job.get('status'):
         case Job_Status.PROCESSING.value:
             return {"message": "in process..."}
+        case Job_Status.QUEUED.value:
+            return {"message": "is queued"}
         case Job_Status.FAILED.value:
             return {"message": "the process is failed"}
             pass

@@ -3,8 +3,6 @@ from pathlib import Path
 from faster_whisper import WhisperModel
 import shutil
 import logging
-
-from src.constants import ALLOWED_TYPES, BROWSER_REQUESTS, CLI_REQUESTS
 import src.utils as utils
 
 base_dir = Path(__file__).resolve().parent
@@ -28,7 +26,6 @@ def transcribe_file(temp_file: Path) -> tuple[dict, dict]:
     
     try: 
         segments, info = model.transcribe(temp_file, vad_filter=True)
-
         all_segments = list(segments)
         return all_segments, info
     finally:
@@ -41,15 +38,13 @@ def transcribe_file(temp_file: Path) -> tuple[dict, dict]:
 def parse_to_file(full_info: dict):  
     
     temp_file = temp_dir / f"temp_res.txt"
-
     try:
         with open (temp_file, 'w') as f:
             f.write(f"FILE INFO: \nLanguage: {full_info.get("language")}\nLanguage Probability: {full_info.get("language_probability")}\nDuration: {full_info.get("duration")}\n\nTRANSCRIPTION:\n")
-
             f.write(full_info.get('transcript'))
         return temp_file
     except FileNotFoundError:
-        logging.error("The file not found error") #actually it's impossible. but what if
+        logging.error("[PARSERS] The file not found error") #actually it's impossible. but what if
 
 
 def parsed_res(all_segments: dict, info: dict, filename: str) -> dict:
