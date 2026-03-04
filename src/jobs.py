@@ -16,11 +16,12 @@ lock = threading.Lock()
 
 # or async?
 
-def create_job(file_path: Path, filename:str, source_family: str) -> dict:
+def create_job(file_path: Path, filename:str, source_family: str, file_type: str) -> dict:
     # lock()
     uuid_id = uuid.uuid4()
     job = {
         "filename": filename,
+        "file_type": file_type,
         "status": Job_Status.QUEUED.value,
         "path": file_path,
         "source": source_family,

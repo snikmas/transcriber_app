@@ -3,7 +3,7 @@ import src.jobs as jobs
 
 import src.constants as const
 import logging
-import threading
+import extractor
 
 
 def worker():
@@ -14,7 +14,11 @@ def worker():
         jobs.update_status(job_id, const.Job_Status.PROCESSING)
 
         path = job.get("path")
-        source_family = job.get("source")
+        source_family = job.get("source") #safier than do job['source]
+
+        if job.get('file_type') in const.ALLOWED_VIDEO_TYPES:
+            path = extractor.extract_audio(path)
+
 
         try:
             res, info = parsers.transcribe_file(path)

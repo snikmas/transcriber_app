@@ -2,6 +2,7 @@ from datetime import timedelta
 from pathlib import Path
 from fastapi import UploadFile
 import magic
+from src.constants import ALLOWED_AUDIO_TYPES, ALLOWED_VIDEO_TYPES
 
 def formatting_seconds(seconds: int) -> str:
     # timedelta takes seconds as an argument
@@ -24,6 +25,11 @@ async def determine_type(file: UploadFile) -> str:
 
     buffer = await file.read(2048)
     await file.seek(0)
-    return magic.from_buffer(buffer, mime=True)
+    mime_type =  magic.from_buffer(buffer, mime=True)
+    if mime_type in ALLOWED_VIDEO_TYPES: return ALLOWED_VIDEO_TYPES.get(mime_type)
+    elif mime_type in ALLOWED_AUDIO_TYPES: return ALLOWED_AUDIO_TYPES.get(mime_type)
+    else: return None
+
+
 
 

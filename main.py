@@ -7,7 +7,7 @@ import os
 import threading
 os.environ["HF_HUB_OFFLINE"] = "1" # the model in the parser, have to tell it: it should run offline
 
-from src.constants import ALLOWED_TYPES, BROWSER_REQUESTS, CLI_REQUESTS, Job_Status
+from src.constants import BROWSER_REQUESTS, CLI_REQUESTS, Job_Status, ALLOWED_VIDEO_TYPES, ALLOWED_AUDIO_TYPES
 import src.parsers as parsers
 import src.utils as utils
 import src.jobs as jobs
@@ -65,7 +65,8 @@ async def transcribe(request: Request, file: UploadFile, response: Response):
     content_type = await utils.determine_type(file)
 
     # later add a link + divide: for video you need to extract the audio
-    if content_type in ALLOWED_TYPES:
+    if content_type is not None:
+        if ALLOWED_VIDEO_TYPES: content_type = ALLOWED_VIDEO_TYPES.get(content_type)
         
         # 2. save to the disk
         try:
@@ -75,7 +76,7 @@ async def transcribe(request: Request, file: UploadFile, response: Response):
             raise Exception("Error during saving a file")
     
         # 3. create a job
-        jobs_id = jobs.create_job(file_path, file.filename, source_family)
+        jobs_id = jobs.create_job(file_path, file.filename, source_family, content_type) #im not sure is it a str or enum. 
         logging.info("Job created")
         return jobs_id
 

@@ -7,9 +7,7 @@ class Job_Status(Enum):
     QUEUED = "queued"
 
 
-
-ALLOWED_TYPES = {
-    # Audio
+ALLOWED_AUDIO_TYPES = {
     "audio/mpeg": "mp3",
     "audio/wav": "wav",
     "audio/x-wav": "wav",
@@ -26,7 +24,9 @@ ALLOWED_TYPES = {
     "audio/x-ms-wma": "wma",
     "audio/ac3": "ac3",
 
-    # Video
+}
+
+ALLOWED_VIDEO_TYPES = {
     "video/mp4": "mp4",
     "video/webm": "webm",
     "video/quicktime": "mov",

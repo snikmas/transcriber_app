@@ -1,35 +1,66 @@
 FILE INFO: 
 Language: EN
 Language Probability: None
-Duration: 0:03:29
+Duration: 0:04:28
 
 TRANSCRIPTION:
-[0:00:04 -> 0:00:16]:  Good morning, welcome to Positive Mental Attitude Talk Show, a daily three minutes of inspiration which can change your life, mind, body and soul.
-[0:00:16 -> 0:00:24]:  Feed your mind with positive mental attitude and motivate your day by saying, I can, I will, I must.
-[0:00:24 -> 0:00:28]:  Today we're going to talk about stop complaining.
-[0:00:28 -> 0:00:34]:  I read this wonderful code as you breathe right now.
-[0:00:34 -> 0:00:45]:  Another person takes his last stop complaining and learn to live life with what you have.
-[0:00:45 -> 0:00:50]:  There are many differences between what we want and what we have.
-[0:00:50 -> 0:00:57]:  It is okay to desire more, but there is times we are greedy.
-[0:00:57 -> 0:01:02]:  This is the evil which has to be tackled correctly.
-[0:01:02 -> 0:01:10]:  This over desire to have more and more slowly starts making us uncomfortable.
-[0:01:10 -> 0:01:12]:  It pushes us to get more and more.
-[0:01:12 -> 0:01:20]:  We become completely consumed with what we want rather than enjoying what we already have.
-[0:01:20 -> 0:01:25]:  We have to learn to adapt with what we have.
-[0:01:26 -> 0:01:34]:  We more mindful at times where someone else in the world who does not even have what you already possess.
-[0:01:34 -> 0:01:40]:  I remember my own personal story when I was a boy growing up.
-[0:01:40 -> 0:01:46]:  I used to complain to my mom that a house believed in was very small.
-[0:01:46 -> 0:01:51]:  We must move into a bigger apartment with more space.
-[0:01:52 -> 0:02:02]:  She told me we can't afford to buy a larger house, but that very weak outside our society.
-[0:02:02 -> 0:02:16]:  There was a group of herdsmen who tend to their sheep and are nobats roaming city to city without any shelter or food.
-[0:02:16 -> 0:02:24]:  I saw they had little children of these herdsmen with no clothes, not having enough food.
-[0:02:25 -> 0:02:33]:  I even saw them in the night sleeping side of the road without any shelter.
-[0:02:33 -> 0:02:43]:  I was deeply hurt and felt sorry about how I was complaining to my mother about our house being small.
-[0:02:43 -> 0:02:51]:  That day I put into perspective that there are so many less fortunate people than I was.
-[0:02:53 -> 0:02:55]:  Let's do an action for the day.
-[0:02:55 -> 0:02:58]:  What are we complaining about today?
-[0:02:58 -> 0:03:05]:  Find out who is less fortunate than you and put things in perspective.
-[0:03:05 -> 0:03:10]:  You will notice you have much better in life.
-[0:03:10 -> 0:03:15]:  Let me remind you of the wonderful code of today.
-[0:03:15 -> 0:03:20]:  As you breathe right now, another person takes their last.
-[0:03:20 -> 0:03:25]:  Stop complaining and learn to live life with what you have.
+[0:00:06 -> 0:00:10]:  Your favorite athlete closes in for a victorious win.
+[0:00:10 -> 0:00:15]:  The crowd holds its breath, and at the crucial moment, she misses the shot.
+[0:00:15 -> 0:00:19]:  That competitor just experienced the phenomenon known as choking,
+[0:00:19 -> 0:00:24]:  where despite months, even years or practice, a person fails right when it matters most.
+[0:00:24 -> 0:00:29]:  Choking is common in sports, where performance often occurs under intense pressure,
+[0:00:29 -> 0:00:31]:  and depends on key moments.
+[0:00:31 -> 0:00:35]:  And yet, performance anxiety also haunts public speakers,
+[0:00:35 -> 0:00:39]:  contestants in spelling these, and even world-famous musicians.
+[0:00:39 -> 0:00:42]:  Most people intuitively blame it on their nerves,
+[0:00:42 -> 0:00:46]:  but why does being nervous undermine expert performance?
+[0:00:46 -> 0:00:50]:  There are two sets of theories, which both say that, primarily,
+[0:00:50 -> 0:00:53]:  choking under pressure, boils down to focus.
+[0:00:53 -> 0:00:56]:  First, there are the distraction theories.
+[0:00:56 -> 0:00:58]:  These suggest that performance suffers
+[0:00:58 -> 0:01:02]:  when the mind is preoccupied with worries, doubts, or fears.
+[0:01:02 -> 0:01:06]:  Instead of focusing its attention on performing the task at hand.
+[0:01:06 -> 0:01:10]:  When relevant and irrelevant thoughts compete for the same attention,
+[0:01:10 -> 0:01:12]:  something has to give.
+[0:01:12 -> 0:01:16]:  The brain can only process so much information at once.
+[0:01:16 -> 0:01:18]:  Task that challenge working memory,
+[0:01:18 -> 0:01:23]:  the mental scratch pad we use to temporarily store phone numbers and grocery lists,
+[0:01:23 -> 0:01:26]:  are especially vulnerable to pressure.
+[0:01:26 -> 0:01:30]:  In a 2004 study, a group of university students
+[0:01:30 -> 0:01:32]:  were asked to perform math problems,
+[0:01:32 -> 0:01:36]:  some easy others more complex and memory intensive.
+[0:01:36 -> 0:01:40]:  Half the students completed both problem types with nothing at stake,
+[0:01:40 -> 0:01:44]:  while the others completed them when calm and under pressure.
+[0:01:44 -> 0:01:47]:  While everyone did well on the easy problems,
+[0:01:47 -> 0:01:49]:  those who were stressed performed worse
+[0:01:49 -> 0:01:52]:  on the more difficult memory intensive tasks.
+[0:01:52 -> 0:01:57]:  Explicit monitoring theories make up the second group of explanations for choking under pressure.
+[0:01:57 -> 0:02:02]:  They're concerned with how pressure can cause people to overanalyze the task at hand.
+[0:02:02 -> 0:02:06]:  Here, the logic goes that once a skill becomes automatic,
+[0:02:06 -> 0:02:10]:  thinking about its precise mechanics interferes with your ability to do it.
+[0:02:10 -> 0:02:16]:  Tasks we do unconsciously seem to be most vulnerable to this kind of choking.
+[0:02:16 -> 0:02:20]:  A study on competitive golfers compared their performance
+[0:02:20 -> 0:02:24]:  and instructed to simply focus on putting as accurately as possible.
+[0:02:24 -> 0:02:29]:  Versus when they were primed to be a cutely aware of the mechanics of their putting stroke.
+[0:02:29 -> 0:02:32]:  Golfers usually perform this action subconsciously,
+[0:02:32 -> 0:02:36]:  so those who suddenly tuned in to the precise details of their own moves
+[0:02:36 -> 0:02:39]:  also became worse at making accurate shots.
+[0:02:39 -> 0:02:42]:  Choking may not be inevitable for everyone though.
+[0:02:42 -> 0:02:46]:  Research suggests that some are more susceptible than others,
+[0:02:46 -> 0:02:51]:  especially those who are self-conscious, anxious, and afraid of being judged negatively by others.
+[0:02:51 -> 0:02:55]:  So how can we avoid choking when it really counts?
+[0:02:55 -> 0:02:59]:  First, it helps to practice under stressful conditions.
+[0:02:59 -> 0:03:05]:  In a study on expert dark players, researchers found that those who hadn't practiced under stress
+[0:03:05 -> 0:03:10]:  performed worse when anxious compared to those who had become accustomed to pressure.
+[0:03:10 -> 0:03:15]:  Secondly, many performers extol the virtues of a pre-performance routine,
+[0:03:15 -> 0:03:21]:  whether it's taking a few deep breaths, repeating a cue word, or doing a rhythmic sequence of movements.
+[0:03:21 -> 0:03:29]:  Studies on golfing, bowling, and water polo find that short rituals can lead to more consistent and accurate performance under pressure.
+[0:03:29 -> 0:03:37]:  And thirdly, researchers have shown that having an external focus on the ultimate goal works better than an internal focus,
+[0:03:37 -> 0:03:40]:  where someone is tuned into the mechanics of what they're doing.
+[0:03:40 -> 0:03:44]:  A study of experienced golfers revealed that those who hit chip shots
+[0:03:44 -> 0:03:51]:  while focused on the flight of the ball performed significantly better than those who focused on the motion of their arms.
+[0:03:51 -> 0:04:01]:  So perhaps we can modify that age old saying, practice under pressure, with focus, and with that glorious end goal in sight makes perfect.
+[0:04:01 -> 0:04:09]:  For a nail-biting example of persevering under pressure, we highly recommend the boys in the boat.
+[0:04:09 -> 0:04:16]:  It tells the gripping true story of nine American rowers, and their quest for gold at the 1936 Olympics in Nazi Germany.
+[0:04:16 -> 0:04:22]:  You can download an audio version of this book for free at audible.com-headed.
+[0:04:22 -> 0:04:27]:  Every free trial started through this link helps support Ted Ed's nonprofit mission.
