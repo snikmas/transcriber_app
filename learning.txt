@@ -1,0 +1,120 @@
+                                                                               
+● Networking 101: How your request travels the internet                                      
+
+  Every device has an address                                                                
+   
+  Just like every house has a postal address, every device connected to the internet has an  
+  IP address.     
+
+  Your laptop:     192.168.1.5   (local, inside your home)
+  Your router:     109.45.23.187 (public, visible to the internet)
+
+  When you open YouTube, they don't see your laptop — they see your router's IP. That's your
+  identity on the internet.
+
+  ---
+  Where do IPs come from?
+
+  Your ISP (Internet Service Provider — Kyivstar, Vodafone, etc.) owns a big block of IPs and
+   rents them to customers.
+
+  ISP owns:    109.45.0.0 → 109.45.255.255  (65,000 addresses)
+  Gives you:   109.45.23.187  ← your home IP
+
+  YouTube looks at 109.45.23.187 and can tell:
+  - This is a residential IP (belongs to a real home user)
+  - ISP is Vodafone Ukraine
+  - City is roughly Kyiv
+
+  This info is public — there are databases that map every IP range to its owner.
+
+  ---
+  What is a datacenter IP?
+
+  Companies like Amazon, Google, Hetzner rent servers in data centers. Those servers also
+  have IPs — but they're registered to Amazon/Hetzner, not to a home ISP.
+
+  Home IP:        109.45.23.187  → owner: Vodafone Ukraine → looks human ✓
+  Datacenter IP:  155.138.147.85 → owner: The Constant Company LLC → looks like a server ✗
+
+  YouTube has a list of all known datacenter IP ranges. When a request comes from one —
+  instant suspicion.
+
+  ---
+  What is a proxy?
+
+  A proxy is a middleman. Instead of you going directly to YouTube, you ask the proxy to go
+  for you.
+
+  Without proxy:
+  You (109.45.23.187)  →  YouTube
+  YouTube sees: 109.45.23.187
+
+  With proxy:
+  You  →  Proxy (155.138.147.85)  →  YouTube
+  YouTube sees: 155.138.147.85  ← proxy's IP, not yours
+
+  The proxy fetches the page and sends it back to you. YouTube never knew you existed.
+
+  ---
+  Types of proxies
+
+  Datacenter proxy — cheapest, fast, but YouTube recognizes and blocks them immediately. Your
+   VPN uses this — that's why you had the timeout problem.
+
+  Your request → Hetzner server in Germany → YouTube
+  YouTube: "that's a server IP, suspicious"
+
+  Residential proxy — the request comes from a real home connection. Much harder to block.
+
+  Your request → Random person's router in Ohio → YouTube
+  YouTube: "that's just some guy in Ohio, fine"
+
+  But how does your request go through someone's home router? That person installed an app
+  that sells their spare bandwidth. Companies like Bright Data, Oxylabs pay regular people a
+  few dollars/month to route traffic through their connection.
+
+  Regular person installs app → "earn money on your idle internet"
+  Their router becomes a proxy node in a giant network
+  Your scraper rents that node for $0.001 per request
+
+  ---
+  VPN vs Proxy — what's the difference?
+
+  They're the same concept, different purpose:
+
+  ┌────────────┬───────────────────┬──────────────────────────┐
+  │            │        VPN        │          Proxy           │
+  ├────────────┼───────────────────┼──────────────────────────┤
+  │ Purpose    │ Privacy, security │ Speed, bypass blocks     │
+  ├────────────┼───────────────────┼──────────────────────────┤
+  │ Traffic    │ All your traffic  │ Usually one app/protocol │
+  ├────────────┼───────────────────┼──────────────────────────┤
+  │ Encryption │ Yes               │ Not always               │
+  ├────────────┼───────────────────┼──────────────────────────┤
+  │ IP shown   │ VPN server's IP   │ Proxy server's IP        │
+  └────────────┴───────────────────┴──────────────────────────┘
+
+  Your VPN at 127.0.0.1:7890 — it's actually running locally on your machine, routing your
+  traffic through some server abroad. That server has a datacenter IP → YouTube blocks it.
+
+  ---
+  The full picture of why download sites work
+
+  Normal developer (you):
+    Laptop → VPN datacenter IP → YouTube: "you're a server, blocked" ❌
+
+  Download site:
+    Their server → residential proxy (guy's home in Texas) → YouTube: "just a normal user" ✓
+
+  They pay for residential proxy networks — costs roughly $3–15 per GB of traffic routed. For
+   a site doing millions of requests, this is their main infrastructure cost.
+
+  ---
+  One sentence summary
+
+  The internet identifies you by your IP address, IPs reveal whether you're a real person or
+  a server, and proxies let you borrow someone else's identity — residential ones are trusted
+   because they look like real humans.
+
+     

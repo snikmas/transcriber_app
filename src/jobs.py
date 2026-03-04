@@ -16,19 +16,26 @@ lock = threading.Lock()
 
 # or async?
 # if isUrl: url or file
-def create_job(file_path: Path, filename:str, source_family: str, file_type: str, isUrl: bool) -> dict:
+def create_job(
+        file_path: Path | None, 
+        filename:str | None, 
+        source_family: str, 
+        file_type: str | None, 
+        is_url: str | None) -> dict:
     # lock()
     uuid_id = uuid.uuid4()
     job = {
         "filename": filename,
         "file_type": file_type,
-        "is_url": isUrl,
         "status": Job_Status.QUEUED.value,
         "path": file_path,
         "source": source_family,
         "created_at": datetime.now()
         
     }
+    if is_url:
+        job['is_url'] = is_url
+    logging.info(f"THIS IS SI URL IN CREATING {job['is_url']}")
     # with lock:
     all_jobs[str(uuid_id)] = job
     cur_queue.put(str(uuid_id)) # need only its id

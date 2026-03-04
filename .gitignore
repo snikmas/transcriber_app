@@ -3,3 +3,4 @@ __pycache__
 .venv
 temp
 .env
+z-test/yt_cookies.txt

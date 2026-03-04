@@ -14,41 +14,46 @@ def worker():
             job = jobs.all_jobs[job_id]
         jobs.update_status(job_id, const.Job_Status.PROCESSING)
 
-        path = job.get("path")
-        source_family = job.get("source") #safier than do job['source]
+        if 'is_url' not in job:
+            path = job.get("path")
+            source_family = job.get("source") #safier than do job['source]
 
-        if job.get('file_type') in const.ALLOWED_VIDEO_TYPES:
-            path = extractor.extract_audio(path)
-        elif job.get('is_url'):
-            video_info = get_video_info(job.get('url'))
+            if job.get('file_type') in const.ALLOWED_VIDEO_TYPES:
+                path = extractor.extract_audio(path)
 
-            if video_info.get('subtitles')
-
-            pass
+                try:
+                    res, info = parsers.transcribe_file(path)
+                except Exception as e:
+                    jobs.update_status(job_id, const.Job_Status.FAILED)
+                    logging.error("[WORKER] Tranctiption failed job %s: \n%s", job_id, e)
+                    continue
+            
+            # path in the job -> 
+                res_parse_cli = parsers.parsed_res(res, info, job.get("filename"))
+        
+        elif 'is_url' in job:
+            video_info = get_video_info(job.get('is_url'))
+            logging.info(f"vide_info: {video_info}")
+        
 
         # maybe put it under the job
-        try:
-            res, info = parsers.transcribe_file(path)
-        except Exception as e:
-            jobs.update_status(job_id, const.Job_Status.FAILED)
-            logging.error("[WORKER] Tranctiption failed job %s: \n%s", job_id, e)
-            continue
         
-        # path in the job -> 
-        res_parse_cli = parsers.parsed_res(res, info, job.get("filename"))
-
         # another logic: preapring a response. change it
 
         with jobs.lock:
-            if source_family in const.CLI_REQUESTS:
-                job['content'] = res_parse_cli
-            elif source_family in const.BROWSER_REQUESTS:
-                file = parsers.parse_to_file(res_parse_cli)
-                job['content'] = res_parse_cli
-                job['download_url'] = file
+
+            if 'is_url' in job:
+                job['video_info'] = video_info
             else:
-                logging.error("[WORKER] The request is not in CLI/BROWSERS types")
-                job['status'] = const.Job_Status.FAILED.value # have to change it here, cuz of deadlockoo
-                continue    
+                if source_family in const.CLI_REQUESTS:
+                    job['content'] = res_parse_cli
+                elif source_family in const.BROWSER_REQUESTS:
+                    file = parsers.parse_to_file(res_parse_cli)
+                    job['content'] = res_parse_cli
+                    job['download_url'] = file
+                else:
+                    logging.error("[WORKER] The request is not in CLI/BROWSERS types")
+                    job['status'] = const.Job_Status.FAILED.value # have to change it here, cuz of deadlockoo
+                    continue    
 
         jobs.update_status(job_id, const.Job_Status.DONE)

@@ -74,30 +74,32 @@ async def transcribe(
         content_type = await utils.determine_type(file)
         is_url = None
     elif url: #cant check the content tpye...
+        logging.info("its an url")
         is_url = url
         content_type = None
          
     
     # later add a link + divide: for video you need to extract the audio
-    if content_type is not None or is_url:
+    if content_type and is_url is None:
+    
         if ALLOWED_VIDEO_TYPES: 
             content_type = ALLOWED_VIDEO_TYPES.get(content_type)
-        
         # 2. save to the disk
         try:
             file_path = parsers.save_file(file)
         except:
             response.status_code = status.HTTP_400_BAD_REQUEST
             raise Exception("Error during saving a file")
-    
-        # 3. create a job
         jobs_id = jobs.create_job(file_path, file.filename, source_family, content_type, is_url) #im not sure is it a str or enum. 
-        logging.info("Job created")
-        return jobs_id
-
-    else:
+    elif is_url is None: #means that this is a file and we cant support it
         response.status_code = status.HTTP_415_UNSUPPORTED_MEDIA_TYPE
         raise HTTPException(status_code=415, detail={"message": f"{content_type} doesn't supported"})
+    # 3. create a job IS NTO THE BEST PLASE
+    else: #it's an url
+        jobs_id = jobs.create_job(None, None, source_family, None, is_url=is_url) 
+    
+    logging.info("Job created")
+    return jobs_id
 
 @app.get("/jobs", status_code=200)
 async def get_all_jobs():
