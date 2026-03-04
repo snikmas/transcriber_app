@@ -4,6 +4,7 @@ import src.jobs as jobs
 import src.constants as const
 import logging
 import extractor
+from extractor import get_video_info
 
 
 def worker():
@@ -18,8 +19,14 @@ def worker():
 
         if job.get('file_type') in const.ALLOWED_VIDEO_TYPES:
             path = extractor.extract_audio(path)
+        elif job.get('is_url'):
+            video_info = get_video_info(job.get('url'))
 
+            if video_info.get('subtitles')
 
+            pass
+
+        # maybe put it under the job
         try:
             res, info = parsers.transcribe_file(path)
         except Exception as e:

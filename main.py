@@ -54,7 +54,15 @@ async def get_transcribe_res(job_id: str) -> dict:
 
 
 @app.post('/transcribe', status_code=201) # here we create a job
-async def transcribe(request: Request, file: UploadFile, response: Response): 
+async def transcribe(
+    request: Request, 
+    response: Response,
+    file: UploadFile | None = None,
+    url: str | None = None,  # have to do only on
+    ): 
+
+    if not url and not file or url and file :
+        raise HTTPException(status_code=404, detail="You must provide a file or a url")
 
     # 1. determine from there the request was send
     user_agent_header = request.headers.get('user-agent')
@@ -62,11 +70,18 @@ async def transcribe(request: Request, file: UploadFile, response: Response):
 
     source_family = user_agent.browser.family
     
-    content_type = await utils.determine_type(file)
-
+    if file:
+        content_type = await utils.determine_type(file)
+        is_url = None
+    elif url: #cant check the content tpye...
+        is_url = url
+        content_type = None
+         
+    
     # later add a link + divide: for video you need to extract the audio
-    if content_type is not None:
-        if ALLOWED_VIDEO_TYPES: content_type = ALLOWED_VIDEO_TYPES.get(content_type)
+    if content_type is not None or is_url:
+        if ALLOWED_VIDEO_TYPES: 
+            content_type = ALLOWED_VIDEO_TYPES.get(content_type)
         
         # 2. save to the disk
         try:
@@ -76,7 +91,7 @@ async def transcribe(request: Request, file: UploadFile, response: Response):
             raise Exception("Error during saving a file")
     
         # 3. create a job
-        jobs_id = jobs.create_job(file_path, file.filename, source_family, content_type) #im not sure is it a str or enum. 
+        jobs_id = jobs.create_job(file_path, file.filename, source_family, content_type, is_url) #im not sure is it a str or enum. 
         logging.info("Job created")
         return jobs_id
 
