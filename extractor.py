@@ -4,7 +4,7 @@ import logging
 import yt_dlp
 from src.jobs import all_jobs
 import logging
-
+from src.parsers import temp_dir
 import os
 from dotenv import load_dotenv
 
@@ -31,8 +31,11 @@ def get_video_info(video_url: str) -> dict:
                 'proxy': PROXY,
                 'cookiefile': os.getenv("PATH_TO_COOKIES"),
                 'ignore_no_formats_error': True,
+                'skip_download': True,
+                'writesubtitles': True,
+                'outtmpl': str(temp_dir / '%(id)s.%(ext)s')
                 }) as ydl:
-            info = ydl.extract_info(video_url, download=False)
+            info = ydl.extract_info(video_url, download=True)
 
             return {
                 'title':        info.get('title'),

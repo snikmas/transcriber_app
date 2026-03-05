@@ -33,7 +33,8 @@ def worker():
         
         elif 'is_url' in job:
             video_info = get_video_info(job.get('is_url'))
-            logging.info(f"vide_info: {video_info}")
+            logging.info(f"vide_info: {video_info.keys()}")
+            res = parsers.transcribe_video_subtitles(video_info.get('subtitles'))
         
 
         # maybe put it under the job

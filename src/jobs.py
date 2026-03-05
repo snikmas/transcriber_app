@@ -35,7 +35,6 @@ def create_job(
     }
     if is_url:
         job['is_url'] = is_url
-    logging.info(f"THIS IS SI URL IN CREATING {job['is_url']}")
     # with lock:
     all_jobs[str(uuid_id)] = job
     cur_queue.put(str(uuid_id)) # need only its id
