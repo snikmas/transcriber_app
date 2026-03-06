@@ -4,53 +4,44 @@ import src.utils as utils
 import src.constants as const
 import logging
 import extractor
+import src.transcriber as transcriber
 from extractor import get_subtitles
 
 
 def worker():
     while True:
-        logging.info("in worker")
         job_id = jobs.cur_queue.get()
         with jobs.lock:
             job = jobs.all_jobs[job_id]
         jobs.update_status(job_id, const.Job_Status.PROCESSING)
 
-        if 'is_url' not in job:
+        if job.get('is_url') is None:
             path = job.get("path")
-            source_family = job.get("source") #safier than do job['source]
-
-            if job.get('file_type') in const.ALLOWED_VIDEO_TYPES:
-                path = extractor.extract_audio(path)
-
-                try:
-                    res, info = parsers.transcribe_file(path)
-                except Exception as e:
-                    jobs.update_status(job_id, const.Job_Status.FAILED)
-                    logging.error("[WORKER] Tranctiption failed job %s: \n%s", job_id, e)
-                    continue
+            source_family = job.get("source")
             
-            # path in the job -> 
+            logging.info('preapring to transcribe') 
+            try:
+                if job.get('file_type') in const.ALLOWED_VIDEO_TYPES:
+                    path = extractor.extract_audio(path)
+
+                res, info = transcriber.transcribe_file(path)
+                logging.info(f"RES\n{res}\n\n INFO: \n{info}\n\n")
+                
+                logging.info('WORKER: PREAPRING FOR RES_PARSE_CLI') #no need to parse? just save dict
                 res_parse_cli = parsers.parsed_res(res, info, job.get("filename"))
-            logging.info("is job in job")
-        elif 'is_url' in job:
-            logging.info(f"preparing for parsing..{job.get('is_url')}")
-            id = utils.pasring_url(job.get('is_url'))
-            
-            # this thing actually would download the thing
-            video_subs = get_subtitles(id)
-            # save to fild? it get path
-            
-            
-            # subtitles = get_subtitles(video_info.get('id'))
-            
-            logging.info(f"VIDEO_INFO RESULTS (the last logging)")
-            # for key in video_info.keys():
-                # logging.info(f"{key}: {video_info.get(key)}")
-        
 
-        # maybe put it under the job
-        
-        # another logic: preapring a response. change it
+                
+            except Exception as e:
+                logging.error(f'ERROR IN woekr: {e}')
+
+        elif job.get('is_url') is not None:
+            logging.info(f"IS URL IN JOB")
+            logging.info(f"preparing for parsing..{job.get('is_url')}")
+            id = utils.pasring_url(job.get('is_url'))  
+            
+            # this thing actually would download the ting
+            video_subs = get_subtitles(id)
+            
 
         with jobs.lock:
 

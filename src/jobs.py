@@ -2,20 +2,17 @@ from fastapi import HTTPException
 from src.constants import Job_Status
 import uuid
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, timezone
 import queue
 import threading
 
 import logging
-# jere queue managment. ok
+
 all_jobs = {}
-# how to use lock here?
 cur_queue = queue.Queue()
 
 lock = threading.Lock()
 
-# or async?
-# if isUrl: url or file
 def create_job(
         file_path: Path | None, 
         filename:str | None, 
@@ -30,12 +27,11 @@ def create_job(
         "status": Job_Status.QUEUED.value,
         "path": file_path,
         "source": source_family,
-        "created_at": datetime.now()
-        
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "is_url": is_url
     }
-    if is_url:
-        job['is_url'] = is_url
-    # with lock:
+
+    logging.info(f"job: {job}")
     all_jobs[str(uuid_id)] = job
     cur_queue.put(str(uuid_id)) # need only its id
     return uuid_id
