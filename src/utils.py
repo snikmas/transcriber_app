@@ -3,6 +3,8 @@ from pathlib import Path
 from fastapi import UploadFile
 import magic
 from src.constants import ALLOWED_AUDIO_TYPES, ALLOWED_VIDEO_TYPES
+from urllib.parse import urlparse
+import logging
 
 def formatting_seconds(seconds: int) -> str:
     # timedelta takes seconds as an argument
@@ -22,6 +24,8 @@ def convert_to_uploadfile(parsed_res_info: Path) -> UploadFile:
 
 
 async def determine_type(file: UploadFile) -> str:
+    print(logging.root.handlers)
+    print(logging.root)
 
     buffer = await file.read(2048)
     await file.seek(0)
@@ -29,6 +33,16 @@ async def determine_type(file: UploadFile) -> str:
     if mime_type in ALLOWED_VIDEO_TYPES: return ALLOWED_VIDEO_TYPES.get(mime_type)
     elif mime_type in ALLOWED_AUDIO_TYPES: return ALLOWED_AUDIO_TYPES.get(mime_type)
     else: return None
+
+
+
+def pasring_url(url: str):
+    parsed_url = urlparse(url)
+    logging.info(f'parsed url: {parsed_url}')
+    logging.info(f"query: {parsed_url.query[2:]}")
+
+    return parsed_url.query[2:] #not sure is this the best option
+    
 
 
 

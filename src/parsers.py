@@ -11,7 +11,9 @@ import io
 
 
 base_dir = Path(__file__).resolve().parent
+logging.info(f"base_dir: {base_dir}")
 temp_dir = base_dir / 'temp_dir'
+logging.info(f"base_dir: {base_dir}; temp_dir: {temp_dir}")
 
 
 model_size = 'tiny'
@@ -68,40 +70,40 @@ def parsed_res(all_segments: dict, info: dict, filename: str) -> dict:
     }
     
 
-def download_file(url: str) -> Path:
+# def download_file(url: str) -> Path:
 
-    # 1. get user_agent
-    try:
-        res = requests.get('https://httpbin.org/headers').json().get('headers')
-        user_agent = res.get('User-Agent')
+#     # 1. get user_agent
+#     try:
+#         res = requests.get('https://httpbin.org/headers').json().get('headers')
+#         user_agent = res.get('User-Agent')
 
-        logging.info(f"user_agent: {user_agent}")
-        logging.info(f"response headers: {res}\n\n")
-        logging.info('we are in the downloadin\n\n')
-        my_headers = {
-            "User-Agent": user_agent,
-            "Accept-Language": "en-US,en;q=0.9",
-            "Accept": "application/json",
-            "Referer": "https://www.youtube.com/" #for now
-        }
+#         logging.info(f"user_agent: {user_agent}")
+#         logging.info(f"response headers: {res}\n\n")
+#         logging.info('we are in the downloadin\n\n')
+#         my_headers = {
+#             "User-Agent": user_agent,
+#             "Accept-Language": "en-US,en;q=0.9",
+#             "Accept": "application/json",
+#             "Referer": "https://www.youtube.com/" #for now
+#         }
 
 
-        res  = requests.get(url, headers=my_headers, timeout=10)
-        content = res.json()
-        res.raise_for_status()
+#         res  = requests.get(url, headers=my_headers, timeout=10)
+#         content = res.json()
+#         res.raise_for_status()
 
-        logging.info(f"content: \n{content}\n\n")
-        # we can call here.. asve file?
+#         logging.info(f"content: \n{content}\n\n")
+#         # we can call here.. asve file?
 
-        file_obj = io.BytesIO(json.dumps(content).encode('utf-8'))
+#         file_obj = io.BytesIO(json.dumps(content).encode('utf-8'))
 
-        path = save_file(file_obj)
-        return path
+#         path = save_file(file_obj)
+#         return path
 
-    except Exception as e:
-        logging.error(f"Error during downloading: {e}")
+#     except Exception as e:
+#         logging.error(f"Error during downloading: {e}")
 
-    pass
+#     pass
 
 
 def transcribe_video_subtitles(video_subtitles: dict):
@@ -109,6 +111,6 @@ def transcribe_video_subtitles(video_subtitles: dict):
     
     logging.info(f'JSON3 {json3.get('url')}')
     url = json3.get('url')
-    saved_path = download_file(url)
+    # saved_path = download_file(url)
     
     return

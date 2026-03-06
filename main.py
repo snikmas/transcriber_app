@@ -13,7 +13,9 @@ import src.utils as utils
 import src.jobs as jobs
 import src.worker as worker
 
-logging.basicConfig(level=logging.INFO)
+print(logging.root.handlers)
+# logging.basicConfig(level=logging.INFO)
+logging.root.setLevel(logging.INFO)
 
 # WORKER
 @asynccontextmanager
@@ -35,6 +37,7 @@ async def flavicon():
 
 @app.get('/transcribe/{job_id}', status_code=200)
 async def get_transcribe_res(job_id: str) -> dict:
+    
     job = jobs.get_job(job_id)
     match job.get('status'):
         case Job_Status.PROCESSING.value:
@@ -60,6 +63,7 @@ async def transcribe(
     file: UploadFile | None = None,
     url: str | None = None,  # have to do only on
     ): 
+    logging.info("in transcribe")
 
     if not url and not file or url and file :
         raise HTTPException(status_code=404, detail="You must provide a file or a url")

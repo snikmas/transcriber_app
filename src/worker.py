@@ -1,14 +1,15 @@
 import src.parsers as parsers
 import src.jobs as jobs
-
+import src.utils as utils
 import src.constants as const
 import logging
 import extractor
-from extractor import get_video_info
+from extractor import get_subtitles
 
 
 def worker():
     while True:
+        logging.info("in worker")
         job_id = jobs.cur_queue.get()
         with jobs.lock:
             job = jobs.all_jobs[job_id]
@@ -30,11 +31,21 @@ def worker():
             
             # path in the job -> 
                 res_parse_cli = parsers.parsed_res(res, info, job.get("filename"))
-        
+            logging.info("is job in job")
         elif 'is_url' in job:
-            video_info = get_video_info(job.get('is_url'))
-            logging.info(f"vide_info: {video_info.keys()}")
-            res = parsers.transcribe_video_subtitles(video_info.get('subtitles'))
+            logging.info(f"preparing for parsing..{job.get('is_url')}")
+            id = utils.pasring_url(job.get('is_url'))
+            
+            # this thing actually would download the thing
+            video_subs = get_subtitles(id)
+            # save to fild? it get path
+            
+            
+            # subtitles = get_subtitles(video_info.get('id'))
+            
+            logging.info(f"VIDEO_INFO RESULTS (the last logging)")
+            # for key in video_info.keys():
+                # logging.info(f"{key}: {video_info.get(key)}")
         
 
         # maybe put it under the job
@@ -44,7 +55,8 @@ def worker():
         with jobs.lock:
 
             if 'is_url' in job:
-                job['video_info'] = video_info
+                pass
+                # job['video_info'] = video_info
             else:
                 if source_family in const.CLI_REQUESTS:
                     job['content'] = res_parse_cli
