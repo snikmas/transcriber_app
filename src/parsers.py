@@ -27,33 +27,52 @@ def save_file(source: UploadFile) -> Path:
     return temp_file_path
 
 
-def parse_to_file(full_info: dict):  
-    
-    temp_file = temp_dir / f"temp_res.txt"
+def parse_to_file(full_info: dict | None = None, json_info: str | None = None) -> Path:  
+
+    temp_file = temp_dir / f"temp_res.json"
     try:
-        with open (temp_file, 'w') as f:
-            f.write(f"FILE INFO: \nLanguage: {full_info.get("language")}\nLanguage Probability: {full_info.get("language_probability")}\nDuration: {full_info.get("duration")}\n\nTRANSCRIPTION:\n")
-            f.write(full_info.get('transcript'))
+        with open (temp_file, 'w') as fp:
+            if full_info:
+                json.dump(full_info, fp, indent=4)
+            else: 
+                fp.write(json_info)
+            logging.info("saved")
         return temp_file
-    except FileNotFoundError:
-        logging.error("[PARSERS] The file not found error") #actually it's impossible. but what if
+    except FileNotFoundError as e:
+        logging.error("[PARSERS] The file not found: {e} ") #actually it's impossible. but what if
 
 
-def parsed_res(all_segments: list, info: dict, filename: str) -> dict:
+def parsed_res(all_segments: list | None = None, info: dict | None = None, filename: str | None = None, fetched_transcript: list | None = None) -> dict:
 
-    dict_seg_list = [{
-            'start_t': utils.formatting_seconds(s.start),
-            'end_t': utils.formatting_seconds(s.end),
-            'content': s.text,
-        } for s in all_segments]
+    if all_segments:
+        dict_res_list = [{
+                'start_t': utils.formatting_seconds(s.start),
+                'end_t':   utils.formatting_seconds(s.end),
+                'content': s.text,
+            } for s in all_segments
+        ]
+
+        return {
+            "filename": filename,
+            "duration": utils.formatting_seconds(info.duration),
+            "language": info.language.upper(),
+            "language Probability": f"{info.language_probability:.1%}",
+            "transcript": dict_res_list
+        }
+    else:
+        dict_res_list = [{
+                'start_t': utils.formatting_seconds(s.start),
+                'end_t':   utils.formatting_seconds(s.start + s.duration),
+                'content': s.text 
+            } for s in fetched_transcript
+        ]
+
         
-    return {
-        "filename": filename,
-        "duration": utils.formatting_seconds(info.duration),
-        "language": info.language.upper(),
-        "language Probability": f"{info.language_probability:.1%}",
-        "transcript": dict_seg_list
-    }
+        
+        return {
+            "transcript": dict_res_list
+        }
+
     
 
 # def download_file(url: str) -> Path:

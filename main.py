@@ -69,13 +69,11 @@ async def transcribe(
     
     if file:
         file_type = await utils.determine_type(file)
-        is_url = None
     elif url: #cant check the content tpye...
-        is_url = url
         file_type = None
 
 
-    if file_type and is_url is None:
+    if file_type and url is None:
     
         if ALLOWED_VIDEO_TYPES: 
             file_type = ALLOWED_VIDEO_TYPES.get(file_type)
@@ -91,20 +89,20 @@ async def transcribe(
             filename=file.filename, 
             source_family=source_family, 
             file_type=file_type, 
-            is_url=is_url
+            is_url=url
             )
         
-    elif is_url is None: #means that this is a file and we cant support it
+    elif url is None: #means that this is a file and we cant support it
         response.status_code = status.HTTP_415_UNSUPPORTED_MEDIA_TYPE
         raise HTTPException(status_code=415, detail={"message": f"{file_type} doesn't supported"})
 
     else: #it's an url
         jobs_id = jobs.create_job(
-            find_file = None, 
+            file_path = None, 
             filename=None, 
             source_family=source_family, 
             file_type=None, 
-            is_url=is_url
+            is_url=url
             ) 
     
     logging.info("Job created")
