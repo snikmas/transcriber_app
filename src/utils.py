@@ -1,4 +1,4 @@
-from datetime import timedelta
+from datetime import timedelta, datetime
 from pathlib import Path
 from fastapi import UploadFile
 import magic
@@ -7,17 +7,23 @@ from urllib.parse import urlparse
 import logging
 import os
 from dotenv import load_dotenv
-import socks
 import httplib2
+import isodate
+
 
 load_dotenv()
 
-def formatting_seconds(seconds: int) -> str:
+def formatting_seconds(seconds: int | None = None, yt_duration: str | None = None) -> str:
     # timedelta takes seconds as an argument
-    total_seconds = int(round(seconds))
-    clean_time = timedelta(seconds=total_seconds)
-    return str(clean_time)
+    # if seconds: return str(timedelta(int(round(seconds))))
+    # else: return str(isodate.parse_duration(yt_duration))
+    if seconds:   
+      return str(timedelta(seconds=int(round(seconds))))
+    else:                                                                                 
+      return str(timedelta(seconds=int(isodate.parse_duration(yt_duration).total_seconds())))      
+     
 
+        
 def convert_to_uploadfile(parsed_res_info: Path) -> UploadFile:
     with open (parsed_res_info, 'rb'):
         upload_file = UploadFile(
@@ -61,5 +67,5 @@ def get_http():
     if scheme == 'socks5':
         proxy_type = httplib2.socks.PROXY_TYPE_SOCKS5
     else: proxy_type = httplib2.socks.PROXY_TYPE_HTTP
-    
+
     return httplib2.Http(proxy_info=httplib2.ProxyInfo(proxy_type=proxy_type, proxy_host=host, proxy_port=port))

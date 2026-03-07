@@ -12,13 +12,13 @@ import io
 
 base_dir = Path(__file__).resolve().parent
 temp_dir = base_dir / 'temp_dir'
+temp_dir.mkdir(exist_ok=True)
 
 model_size = 'tiny'
 
 model = WhisperModel(model_size, device='cpu', compute_type="int8")
 
 def save_file(source: UploadFile) -> Path:
-    temp_dir.mkdir(exist_ok=True)
     temp_file_path = temp_dir / f"temp_{source.filename}"
 
     with open (temp_file_path, 'wb') as buffer:
@@ -30,6 +30,7 @@ def save_file(source: UploadFile) -> Path:
 def parse_to_file(full_info: dict | None = None, json_info: str | None = None) -> Path:  
 
     temp_file = temp_dir / f"temp_res.json"
+    logging.info(f"temp_file: {temp_file}")
     try:
         with open (temp_file, 'w') as fp:
             if full_info:
@@ -39,7 +40,7 @@ def parse_to_file(full_info: dict | None = None, json_info: str | None = None) -
             logging.info("saved")
         return temp_file
     except FileNotFoundError as e:
-        logging.error("[PARSERS] The file not found: {e} ") #actually it's impossible. but what if
+        logging.error(f"[PARSERS] The file not found: {e} ") #actually it's impossible. but what if
 
 
 def parsed_res(all_segments: list | None = None, info: dict | None = None, filename: str | None = None, fetched_transcript: list | None = None) -> dict:

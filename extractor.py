@@ -76,7 +76,7 @@ def get_video_info(id: str) -> dict:
     return {
         "title": snippet.get('title'),
         'description': snippet.get('description'),
-        'duration': content_details.get('duration'),
+        'duration': utils.formatting_seconds(yt_duration=content_details.get('duration')),
         'language': snippet.get('defaultAudioLanguage') or snippet.get('defaultLanguage'),
         'channel': snippet.get('channelTitle')
     }

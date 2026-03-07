@@ -66,44 +66,38 @@ async def transcribe(
     user_agent = parse(user_agent_header)
 
     source_family = user_agent.browser.family
+    logging.info(source_family)
     
     if file:
         file_type = await utils.determine_type(file)
+        filename = file.filename
+        if file_type:
+            if ALLOWED_VIDEO_TYPES: 
+                file_type = ALLOWED_VIDEO_TYPES.get(file_type)
+            # 2. save to the disk
+                try:
+                    file_path = parsers.save_file(file)
+                except:
+                    response.status_code = status.HTTP_400_BAD_REQUEST
+                    raise Exception("Error during saving a file")
+            else: # doesnt allow
+                response.status_code = status.HTTP_415_UNSUPPORTED_MEDIA_TYPE
+                raise HTTPException(status_code=415, detail={"message": f"{file_type} doesn't supported"})
     elif url: #cant check the content tpye...
         file_type = None
+        filename = None
+        file_path = None
 
-
-    if file_type and url is None:
-    
-        if ALLOWED_VIDEO_TYPES: 
-            file_type = ALLOWED_VIDEO_TYPES.get(file_type)
-        # 2. save to the disk
-        try:
-            file_path = parsers.save_file(file)
-        except:
-            response.status_code = status.HTTP_400_BAD_REQUEST
-            raise Exception("Error during saving a file")
+                
+    jobs_id = jobs.create_job(
+        file_path=file_path, 
+        filename=filename, 
+        source_family=source_family, 
+        file_type=file_type, 
+        is_url=url
+        )
         
-        jobs_id = jobs.create_job(
-            file_path=file_path, 
-            filename=file.filename, 
-            source_family=source_family, 
-            file_type=file_type, 
-            is_url=url
-            )
-        
-    elif url is None: #means that this is a file and we cant support it
-        response.status_code = status.HTTP_415_UNSUPPORTED_MEDIA_TYPE
-        raise HTTPException(status_code=415, detail={"message": f"{file_type} doesn't supported"})
 
-    else: #it's an url
-        jobs_id = jobs.create_job(
-            file_path = None, 
-            filename=None, 
-            source_family=source_family, 
-            file_type=None, 
-            is_url=url
-            ) 
     
     logging.info("Job created")
     return jobs_id

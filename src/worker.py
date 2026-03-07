@@ -14,14 +14,14 @@ def worker():
         with jobs.lock:
             job = jobs.all_jobs[job_id]
         jobs.update_status(job_id, const.Job_Status.PROCESSING)
+        logging.info(f'source family: {job.get('source_family')}')
 
         if job.get('is_url') is None:
             path = job.get("path")
-            source_family = job.get("source")
             
             logging.info('preapring to transcribe') 
             try:
-                if job.get('file_type') in const.ALLOWED_VIDEO_TYPES:
+                if job.get('file_type') in const.ALLOWED_VIDEO_TYPES: #cuz if its a video - have to do more
                     path = extractor.extract_audio(path)
 
                 res, info = transcriber.transcribe_file(path)
@@ -32,10 +32,8 @@ def worker():
                 logging.error('[WORKER]: {e}')
 
         else: # is a url
-            logging.info(f"url: {job.get('is_url')}")
             id = utils.pasring_url(job.get('is_url'))  
             
-            # this thing actually would download the ting
             subtitles_json = extractor.get_subtitles(id)
             video_info = extractor.get_video_info(id)
 
@@ -44,19 +42,17 @@ def worker():
 
         with jobs.lock:
 
-            if job.get('is_url') is not None:
-                job['result'] = result_json
+            logging.info(f'source family: {job.get('source_family')}')
         
+            if job.get('source_family') in const.CLI_REQUESTS:
+                job['result'] = result_json
+            elif job.get('source_family') in const.BROWSER_REQUESTS:
+                file = parsers.parse_to_file(full_info=result_json)
+                job['result'] = result_json
+                job['download_url'] = file
             else:
-                if source_family in const.CLI_REQUESTS:
-                    job['result'] = result_json
-                elif source_family in const.BROWSER_REQUESTS:
-                    file = parsers.parse_to_file(result_json)
-                    job['result'] = result_json
-                    job['download_url'] = file
-                else:
-                    logging.error("[WORKER] The request is not in CLI/BROWSERS types")
-                    job['status'] = const.Job_Status.FAILED.value # have to change it here, cuz of deadlockoo
-                    continue    
+                logging.error("[WORKER] The request is not in CLI/BROWSERS types")
+                job['status'] = const.Job_Status.FAILED.value # have to change it here, cuz of deadlockoo
+                continue    
 
         jobs.update_status(job_id, const.Job_Status.DONE)

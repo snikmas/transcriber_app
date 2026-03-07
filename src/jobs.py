@@ -26,7 +26,7 @@ def create_job(
         "file_type": file_type,
         "status": Job_Status.QUEUED.value,
         "path": file_path,
-        "source": source_family,
+        "source_family": source_family,
         "created_at": datetime.now(timezone.utc).isoformat(),
         "is_url": is_url
     }
