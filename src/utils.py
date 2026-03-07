@@ -5,6 +5,12 @@ import magic
 from src.constants import ALLOWED_AUDIO_TYPES, ALLOWED_VIDEO_TYPES
 from urllib.parse import urlparse
 import logging
+import os
+from dotenv import load_dotenv
+import socks
+import httplib2
+
+load_dotenv()
 
 def formatting_seconds(seconds: int) -> str:
     # timedelta takes seconds as an argument
@@ -44,6 +50,16 @@ def pasring_url(url: str):
     return parsed_url.query[2:] #not sure is this the best option
     
 
+def parse_proxy(proxy: str):
+    parsed_proxy = urlparse(proxy)
+    logging.info(parsed_proxy)
+    return parsed_proxy.scheme, parsed_proxy.hostname, parsed_proxy.port  #scheme - host - port
 
-
-
+def get_http():
+    parsed_proxy = urlparse(os.getenv('PROXY'))
+    scheme, host, port = parsed_proxy.scheme, parsed_proxy.hostname, parsed_proxy.port
+    if scheme == 'socks5':
+        proxy_type = httplib2.socks.PROXY_TYPE_SOCKS5
+    else: proxy_type = httplib2.socks.PROXY_TYPE_HTTP
+    
+    return httplib2.Http(proxy_info=httplib2.ProxyInfo(proxy_type=proxy_type, proxy_host=host, proxy_port=port))

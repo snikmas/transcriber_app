@@ -8,7 +8,10 @@ import src.parsers as parsers
 import os
 from dotenv import load_dotenv
 import src.transcriber as transcriber
-
+import httplib2
+import socks
+import urllib
+import src.utils as utils
 from youtube_transcript_api import YouTubeTranscriptApi
 from youtube_transcript_api.formatters import JSONFormatter
 from youtube_transcript_api.proxies import GenericProxyConfig
@@ -16,6 +19,7 @@ from googleapiclient.discovery import build
 
 load_dotenv()
 formatter = JSONFormatter()
+
 
 def extract_audio(temp_file: Path) -> Path:
     output_path = temp_file.with_suffix('wav')
@@ -29,6 +33,7 @@ def extract_audio(temp_file: Path) -> Path:
     
 
 def get_subtitles(id: str) -> dict:    
+
     ytt_api = YouTubeTranscriptApi(proxy_config=GenericProxyConfig(
         http_url=os.getenv("PROXY"),
         https_url=os.getenv("PROXY"),
@@ -51,10 +56,14 @@ def get_subtitles(id: str) -> dict:
 
 def get_video_info(id: str) -> dict:
 
-    youtube = build('youtube', 'v3', developerKey=os.getenv('GOOGLE_API_KEY'))
+    logging.info("in the get vide info")
+
+    http = utils.get_http()
+
+    youtube = build('youtube', 'v3', developerKey=os.getenv('GOOGLE_API_KEY'), http=http)
 
     response = youtube.videos().list(
-        part='snippet',
+        part='snippet,contentDetails',
         id=id
     ).execute()
 

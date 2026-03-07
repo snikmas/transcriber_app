@@ -45,14 +45,13 @@ def worker():
         with jobs.lock:
 
             if job.get('is_url') is not None:
-                pass
-                # job['video_info'] = video_info
+                job['result'] = result_json
+        
             else:
                 if source_family in const.CLI_REQUESTS:
                     job['result'] = result_json
                 elif source_family in const.BROWSER_REQUESTS:
                     file = parsers.parse_to_file(result_json)
-                    logging.info('saved a fuke')
                     job['result'] = result_json
                     job['download_url'] = file
                 else:
