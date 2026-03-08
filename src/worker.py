@@ -4,8 +4,7 @@ import src.utils as utils
 import src.constants as const
 import logging
 import extractor
-import src.transcriber as transcriber
-import extractor 
+import src.transcriber as transcriber 
 
 
 def worker():
@@ -21,23 +20,38 @@ def worker():
             
             logging.info('preapring to transcribe') 
             try:
-                if job.get('file_type') in const.ALLOWED_VIDEO_TYPES: #cuz if its a video - have to do more
-                    path = extractor.extract_audio(path)
+                path = extractor.extract_audio(path)
 
                 res, info = transcriber.transcribe_file(path)
                 
                 result_json = parsers.parsed_res(res, info, job.get("filename"))
     
             except Exception as e:
-                logging.error('[WORKER]: {e}')
+                job['status'] = const.Job_Status.FAILED.value
+                logging.error(f'[WORKER]: {e}')
+                continue
 
         else: # is a url
-            id = utils.pasring_url(job.get('is_url'))  
+            try:
+                id = utils.parsing_url(job.get('is_url'))  
             
-            subtitles_json = extractor.get_subtitles(id)
-            video_info = extractor.get_video_info(id)
+                subtitles_json = extractor.get_subtitles(id)
+                video_info = extractor.get_video_info(id)
+            except Exception as e:
+                logging.error(f'[WORKER]: problem with parsing / getting subtitles/video info')
+                job['status'] = const.Job_Status.FAILED.value
+                continue
+            try:
+                result_json = video_info | subtitles_json
+            except ValueError:
+                logging.error(f'[WORKER]: {ValueError}')
+                job['status'] = const.Job_Status.FAILED.value
+                continue
+            except NameError:
+                logging.error(f'[WORKER]: {NameError}')
+                job['status'] = const.Job_Status.FAILED.value
+                continue
 
-            result_json = video_info | subtitles_json
             
 
         with jobs.lock:
@@ -52,6 +66,7 @@ def worker():
                 job['download_url'] = file
             else:
                 logging.error("[WORKER] The request is not in CLI/BROWSERS types")
+                job['result'] = None
                 job['status'] = const.Job_Status.FAILED.value # have to change it here, cuz of deadlockoo
                 continue    
 

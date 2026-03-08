@@ -1,16 +1,9 @@
 from pathlib import Path
 import ffmpeg
 import logging
-import yt_dlp
-from src.jobs import all_jobs
-import logging
 import src.parsers as parsers
 import os
 from dotenv import load_dotenv
-import src.transcriber as transcriber
-import httplib2
-import socks
-import urllib
 import src.utils as utils
 from youtube_transcript_api import YouTubeTranscriptApi
 from youtube_transcript_api.formatters import JSONFormatter
@@ -22,10 +15,10 @@ formatter = JSONFormatter()
 
 
 def extract_audio(temp_file: Path) -> Path:
-    output_path = temp_file.with_suffix('wav')
+    output_path = temp_file.with_suffix('.wav')
     try:
         #if we handle only one file for time, its okay. but later if 2+ files -> problems
-        ffmpeg.input(str(temp_file)).output(str(output_path), acodec='pcm_s16le', ar=16000, ac=1).run(overwrite_output=True, quiet=Tru)
+        ffmpeg.input(str(temp_file)).output(str(output_path), acodec='pcm_s16le', ar=16000, ac=1).run(overwrite_output=True, quiet=True)
         return output_path
     except ffmpeg.Error as e:
         logging.error("[EXTRACTOR] ffmpeg error: %s", e.stderr.decode())    
@@ -41,13 +34,18 @@ def get_subtitles(id: str) -> dict:
 
     transcript_list = ytt_api.list(id)
     transcript = transcript_list.find_manually_created_transcript(['en'])
+    if transcript is None:
+        transcript = transcript_list.find_transcript(['en'])
 
     #if its not null: we can get video_id; language; language code; is generated; is translabe; translation languages
     #fetch it
-    if transcript is not None:
+    try:
         subtitles = transcript.fetch()
         logging.info(f'{type(subtitles)}')
-        result_json = parsers.parsed_res(fetched_transcript=subtitles)
+        result_json = parsers.parsed_res(fetched_transcript=subtitles) 
+        # fi none... ok, it's none
+    except Exception as e:
+        raise Exception(f'[Extractor] {e}')
 
 
     return result_json

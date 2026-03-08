@@ -4,15 +4,13 @@ from faster_whisper import WhisperModel
 import shutil
 import logging
 import src.utils as utils
-import urllib.request
-import requests
 import json
-import io
 
 
 base_dir = Path(__file__).resolve().parent
 temp_dir = base_dir / 'temp_dir'
 temp_dir.mkdir(exist_ok=True)
+temp_file = temp_dir / f'temp_res.json'
 
 model_size = 'tiny'
 
@@ -29,11 +27,10 @@ def save_file(source: UploadFile) -> Path:
 
 def parse_to_file(full_info: dict | None = None, json_info: str | None = None) -> Path:  
 
-    temp_file = temp_dir / f"temp_res.json"
     logging.info(f"temp_file: {temp_file}")
     try:
         with open (temp_file, 'w') as fp:
-            if full_info:
+            if full_info is not None:
                 json.dump(full_info, fp, indent=4)
             else: 
                 fp.write(json_info)
@@ -45,7 +42,7 @@ def parse_to_file(full_info: dict | None = None, json_info: str | None = None) -
 
 def parsed_res(all_segments: list | None = None, info: dict | None = None, filename: str | None = None, fetched_transcript: list | None = None) -> dict:
 
-    if all_segments:
+    if all_segments is not None:
         dict_res_list = [{
                 'start_t': utils.formatting_seconds(s.start),
                 'end_t':   utils.formatting_seconds(s.end),
@@ -60,7 +57,7 @@ def parsed_res(all_segments: list | None = None, info: dict | None = None, filen
             "language Probability": f"{info.language_probability:.1%}",
             "transcript": dict_res_list
         }
-    else:
+    elif all_segments is None and fetched_transcript:
         dict_res_list = [{
                 'start_t': utils.formatting_seconds(s.start),
                 'end_t':   utils.formatting_seconds(s.start + s.duration),
@@ -68,47 +65,12 @@ def parsed_res(all_segments: list | None = None, info: dict | None = None, filen
             } for s in fetched_transcript
         ]
 
-        
-        
         return {
             "transcript": dict_res_list
         }
 
-    
+    else:
+        raise Exception(f'[parsers] No information to parse: {Exception}')
 
-# def download_file(url: str) -> Path:
-
-#     # 1. get user_agent
-#     try:
-#         res = requests.get('https://httpbin.org/headers').json().get('headers')
-#         user_agent = res.get('User-Agent')
-
-#         logging.info(f"user_agent: {user_agent}")
-#         logging.info(f"response headers: {res}\n\n")
-#         logging.info('we are in the downloadin\n\n')
-#         my_headers = {
-#             "User-Agent": user_agent,
-#             "Accept-Language": "en-US,en;q=0.9",
-#             "Accept": "application/json",
-#             "Referer": "https://www.youtube.com/" #for now
-#         }
-
-
-#         res  = requests.get(url, headers=my_headers, timeout=10)
-#         content = res.json()
-#         res.raise_for_status()
-
-#         logging.info(f"content: \n{content}\n\n")
-#         # we can c all here.. asve file?
-
-#         file_obj = io.BytesIO(json.dumps(content).encode('utf-8'))
-
-#         path = save_file(file_obj)
-#         return path
-
-#     except Exception as e:
-#         logging.error(f"Error during downloading: {e}")
-
-#     pass
-
-
+        
+        

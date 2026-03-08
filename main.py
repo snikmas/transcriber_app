@@ -7,11 +7,12 @@ import os
 import threading
 os.environ["HF_HUB_OFFLINE"] = "1" # the model in the parser, have to tell it: it should run offline
 
-from src.constants import BROWSER_REQUESTS, CLI_REQUESTS, Job_Status, ALLOWED_VIDEO_TYPES, ALLOWED_AUDIO_TYPES
+from src.constants import CLI_REQUESTS, Job_Status, ALLOWED_VIDEO_TYPES, ALLOWED_AUDIO_TYPES
 import src.parsers as parsers
 import src.utils as utils
 import src.jobs as jobs
 import src.worker as worker
+import extractor
 
 logging.root.setLevel(logging.INFO)
 
@@ -41,12 +42,11 @@ async def get_transcribe_res(job_id: str) -> dict:
             return {"message": "is queued"}
         case Job_Status.FAILED.value:
             return {"message": "the process is failed"}
-            pass
         case Job_Status.DONE.value:
-            if job.get("source") in CLI_REQUESTS:
-                return {"content": job.get('content'), "download_url": job.get('download_url')} # or just put the last 2 lines frmo the dict?
+            if job.get("source_family") in CLI_REQUESTS:
+                return {"result": job.get('result'), "download_url": job.get('download_url')} # or just put the last 2 lines frmo the dict?
             else:
-                return {"content": job.get("content")} # needs to delete from hte jobs?
+                return {"result": job.get("result")} # needs to delete from hte jobs?
 
 
 @app.post('/transcribe', status_code=201) 
@@ -59,7 +59,7 @@ async def transcribe(
     logging.info("in transcribe")
 
     if not url and not file or url and file :
-        raise HTTPException(status_code=404, detail="You must provide a file or a url")
+        raise HTTPException(status_code=400, detail="You must provide a file or a url")
 
     # 1. determine from there the request was send
     user_agent_header = request.headers.get('user-agent')
@@ -71,23 +71,27 @@ async def transcribe(
     if file:
         file_type = await utils.determine_type(file)
         filename = file.filename
-        if file_type:
-            if ALLOWED_VIDEO_TYPES: 
-                file_type = ALLOWED_VIDEO_TYPES.get(file_type)
-            # 2. save to the disk
-                try:
-                    file_path = parsers.save_file(file)
-                except:
-                    response.status_code = status.HTTP_400_BAD_REQUEST
-                    raise Exception("Error during saving a file")
-            else: # doesnt allow
-                response.status_code = status.HTTP_415_UNSUPPORTED_MEDIA_TYPE
-                raise HTTPException(status_code=415, detail={"message": f"{file_type} doesn't supported"})
-    elif url: #cant check the content tpye...
+
+        if file_type is not None:
+            try:
+                file_path = parsers.save_file(file)
+                if file_type in ALLOWED_VIDEO_TYPES.values():
+                    file_path = extractor.extract_audio(file_path)
+            except Exception:
+                response.status_code = status.HTTP_400_BAD_REQUEST
+                raise HTTPException(status_code=500, detail="Error saving a file")
+
+            
+
+        else: 
+            response.status_code = status.HTTP_415_UNSUPPORTED_MEDIA_TYPE 
+            raise HTTPException(status_code=415, detail={"message": f"{file_type} doesn't supported"})
+    elif url: 
         file_type = None
         filename = None
         file_path = None
-
+    else: 
+        raise HTTPException(status_code=400, detail={'message': 'No url, no file in the request'})
                 
     jobs_id = jobs.create_job(
         file_path=file_path, 
