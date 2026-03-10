@@ -45,7 +45,10 @@ def parse_proxy(proxy: str):
     return parsed_proxy.scheme, parsed_proxy.hostname, parsed_proxy.port  
 
 def get_http():
-    parsed_proxy = urlparse(os.getenv('PROXY'))
+    try:
+        parsed_proxy = urlparse(os.getenv('PROXY'))
+    except ValueError:
+        raise ValueError(f"[utils] No proxy")
     scheme, host, port = parsed_proxy.scheme, parsed_proxy.hostname, parsed_proxy.port
     if scheme == 'socks5':
         proxy_type = httplib2.socks.PROXY_TYPE_SOCKS5

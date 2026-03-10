@@ -20,8 +20,6 @@ def worker():
             
             logging.info('preapring to transcribe') 
             try:
-                path = extractor.extract_audio(path)
-
                 res, info = transcriber.transcribe_file(path)
                 
                 result_json = parsers.parsed_res(res, info, job.get("filename"))

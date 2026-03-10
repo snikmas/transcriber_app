@@ -33,12 +33,15 @@ def get_subtitles(id: str) -> dict:
     ))
 
     transcript_list = ytt_api.list(id)
-    transcript = transcript_list.find_manually_created_transcript(['en'])
-    if transcript is None:
+    try: 
+        transcript = transcript_list.find_manually_created_transcript(['en'])
+    
+    except ValueError:
+        logging.error(f"[EXTRACTOR] can't get manually transcript. trying to get automatic..")
         transcript = transcript_list.find_transcript(['en'])
+    except Exception as e:
+        raise Exception(f"[extractor]: {e}")
 
-    #if its not null: we can get video_id; language; language code; is generated; is translabe; translation languages
-    #fetch it
     try:
         subtitles = transcript.fetch()
         logging.info(f'{type(subtitles)}')
@@ -49,7 +52,6 @@ def get_subtitles(id: str) -> dict:
 
 
     return result_json
-    # path_to_file = parsers.parse_to_file(json_info=json_formatted) # NOT HERE
     
 
 def get_video_info(id: str) -> dict:
