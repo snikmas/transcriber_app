@@ -13,11 +13,14 @@ import src.utils as utils
 import src.jobs as jobs
 import src.worker as worker
 import extractor
+import src.database.database as database
 
 logging.root.setLevel(logging.INFO)
 
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    database.init_db()
     thread = threading.Thread(target=worker.worker, daemon=True)
     thread.start()
     yield
@@ -58,7 +61,7 @@ async def transcribe(
     ): 
     logging.info("in transcribe")
 
-    if not url and not file or url and file :
+    if bool(url) == bool(file) :
         raise HTTPException(status_code=400, detail="You must provide a file or a url")
 
     # 1. determine from there the request was send
@@ -104,10 +107,28 @@ async def transcribe(
 
     
     logging.info("Job created")
-    return jobs_id
+    return {"jobs_id": jobs_id}
 
 @app.get("/jobs", status_code=200)
 async def get_all_jobs():
     all_jobs = jobs.all_jobs
 
     return all_jobs
+
+@app.delete("/jobs/{job_id}", status_code=200)
+async def delete_job(job_id: str, response: Response):
+    try:
+        jobs.delete_job(job_id=job_id)
+    except KeyError:
+        response.status_code=status.HTTP_404_NOT_FOUND
+        raise HTTPException(status_code=404, detauil={"message": "no key"})
+    
+@app.get('/jobs/{job_id}/result', status_code=200)
+async def get_result(job_id: str, response: Response):
+    try:
+        result = jobs.get_result(job_id)
+    except Exception:
+        response.status_code=status.HTTP_404_NOT_FOUND
+        raise HTTPException(status_code=404, detail=f"[main] No key found")
+    
+    return result

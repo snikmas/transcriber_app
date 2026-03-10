@@ -5,7 +5,9 @@ import src.constants as const
 import logging
 import extractor
 import src.transcriber as transcriber 
+from src.jobs import lock
 
+import src.database.database as database
 
 def worker():
     while True:
@@ -16,7 +18,7 @@ def worker():
         logging.info(f'source family: {job.get('source_family')}')
 
         if job.get('is_url') is None:
-            path = job.get("path")
+            path = job.get("filepath")
             
             logging.info('preapring to transcribe') 
             try:
@@ -25,7 +27,9 @@ def worker():
                 result_json = parsers.parsed_res(res, info, job.get("filename"))
     
             except Exception as e:
-                job['status'] = const.Job_Status.FAILED.value
+                with lock:
+                    job['status'] = const.Job_Status.FAILED.value
+                database.update_job(job_id=job_id, status=const.Job_Status.FAILED.value)
                 logging.error(f'[WORKER]: {e}')
                 continue
 
@@ -37,17 +41,23 @@ def worker():
                 video_info = extractor.get_video_info(id)
             except Exception as e:
                 logging.error(f'[WORKER]: problem with parsing / getting subtitles/video info')
-                job['status'] = const.Job_Status.FAILED.value
+                with lock:
+                    job['status'] = const.Job_Status.FAILED.value
+                jobs.update_status(job_id=job_id, status=const.Job_Status.FAILED.value)
                 continue
             try:
                 result_json = video_info | subtitles_json
             except ValueError:
                 logging.error(f'[WORKER]: {ValueError}')
-                job['status'] = const.Job_Status.FAILED.value
+                with lock:
+                    job['status'] = const.Job_Status.FAILED.value
+                jobs.update_status(job_id=job_id, status=const.Job_Status.FAILED.value)
                 continue
             except NameError:
                 logging.error(f'[WORKER]: {NameError}')
-                job['status'] = const.Job_Status.FAILED.value
+                with lock: # does it make sense changing here by ahnd and not to do jobs,update status? ith ink no. + there you can do db update
+                    job['status'] = const.Job_Status.FAILED.value
+                jobs.update_status(job_id=job_id, status=const.Job_Status.FAILED.value)
                 continue
 
             
@@ -68,4 +78,5 @@ def worker():
                 job['status'] = const.Job_Status.FAILED.value # have to change it here, cuz of deadlockoo
                 continue    
 
-        jobs.update_status(job_id, const.Job_Status.DONE)
+        with lock: # if jobs,upate status is changing it.. 
+            jobs.update_status(job_id, const.Job_Status.DONE)
