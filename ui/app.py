@@ -416,26 +416,26 @@ if transcribe_btn or st.session_state.get("show_result"):
     st.divider()
 
     with st.spinner("Transcribing..."):
-        if not st.session_state.get("job_id"):
+        if not st.session_state.get("jobs_id"):
             # no job yet — submit
             if data:
                 response = requests.post('http://localhost:8000/transcribe', files={"file": (data.name, data, data.type)})
             else:
                 response = requests.post('http://localhost:8000/transcribe', json={"url": url_video.strip()})
-            st.session_state["job_id"] = response.json()["job_id"]
+            st.session_state["jobs_id"] = response.json()["jobs_id"]
             time.sleep(3)
             st.rerun()
         else:
             # job exists — check status
-            job_id = st.session_state["job_id"]
+            job_id = st.session_state["jobs_id"]
             response = requests.get(f'http://localhost:8000/jobs/{job_id}')
             status = response.json()["status"]
 
-            if status == "processing" or status == "queued":
+            if status == "in process..." or status == "is queued":
                 time.sleep(3)
                 st.rerun()
             elif status == "failed":
-                st.session_state.pop("job_id", None)
+                st.session_state.pop("jobs_id", None)
                 st.error("Transcription failed.")
                 st.stop()
             # if "done" — fall through, show result below
