@@ -9,9 +9,10 @@ import os
 from dotenv import load_dotenv
 import httplib2
 import isodate
-
+import tempfile
 
 load_dotenv()
+
 
 def formatting_seconds(seconds: int | None = None, yt_duration: str | None = None) -> str:
     if yt_duration is None and seconds == 0: return str(timedelta(0))
@@ -22,14 +23,22 @@ def formatting_seconds(seconds: int | None = None, yt_duration: str | None = Non
      
 
 async def determine_type(file: UploadFile) -> str:
-    buffer = await file.read(2048)
+    content = await file.read(2048)
     await file.seek(0)
-    mime_type =  magic.from_buffer(buffer, mime=True)
+
+    with tempfile.NamedTemporaryFile(delete=False) as tf:
+        tf.write(content)
+        tmp_path = tf.name
+        
+    try:
+        mime_type =  magic.from_file(tmp_path, mime=True)
+    finally:
+        os.unlink(tmp_path)    
+    
+    logging.info(mime_type)
     if mime_type in ALLOWED_VIDEO_TYPES: return ALLOWED_VIDEO_TYPES.get(mime_type)
     elif mime_type in ALLOWED_AUDIO_TYPES: return ALLOWED_AUDIO_TYPES.get(mime_type)
     else: return None
-
-
 
 def parsing_url(url: str) -> str:
     parsed_url = urlparse(url)
@@ -38,6 +47,8 @@ def parsing_url(url: str) -> str:
 
     return video_id
     
+
+
 
 def parse_proxy(proxy: str):
     parsed_proxy = urlparse(proxy)

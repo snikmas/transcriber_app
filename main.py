@@ -71,8 +71,12 @@ async def transcribe(
     source_family = user_agent.browser.family
     logging.info(source_family)
     
+
     if file:
-        file_type = await utils.determine_type(file)
+        if source_family in CLI_REQUESTS:
+            file_type = await utils.determine_type(file)
+        else: 
+            file_type = await utils.determine_type(file)
         filename = file.filename
 
         if file_type is not None:

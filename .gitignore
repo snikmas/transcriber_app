@@ -1,7 +1,10 @@
 plan.md
-__pycache__
+__pycache__/
 .venv
 temp
 .env
 z-test/yt_cookies.txt
 learning.txt
+learning.txt
+video_1.mp4
+temp_dir
