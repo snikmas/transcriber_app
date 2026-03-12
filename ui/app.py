@@ -419,9 +419,9 @@ if transcribe_btn or st.session_state.get("show_result"):
         if not st.session_state.get("jobs_id"):
             # no job yet — submit
             if data:
-                response = requests.post('http://localhost:8000/transcribe', files={"file": (data.name, data, data.type)})
+                response = requests.post('http://localhost:8000/transcribe', files={"file": (data.name, data, data.type)}, headers={"X-Source": "ui"})
             else:
-                response = requests.post('http://localhost:8000/transcribe', json={"url": url_video.strip()})
+                response = requests.post('http://localhost:8000/transcribe', json={"url": url_video.strip()}, headers={"X-Source": "ui"})
             st.session_state["jobs_id"] = response.json()["jobs_id"]
             time.sleep(3)
             st.rerun()
@@ -429,12 +429,12 @@ if transcribe_btn or st.session_state.get("show_result"):
             # job exists — check status
             job_id = st.session_state["jobs_id"]
             response = requests.get(f'http://localhost:8000/jobs/{job_id}')
-            status = response.json()["status"]
+            result = response.json()["result"]
 
-            if status == "in process..." or status == "is queued":
+            if result is None:
                 time.sleep(3)
                 st.rerun()
-            elif status == "failed":
+            elif result == "failed":
                 st.session_state.pop("jobs_id", None)
                 st.error("Transcription failed.")
                 st.stop()

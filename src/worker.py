@@ -73,6 +73,7 @@ def worker():
                 job['result'] = result_json
                 job['download_url'] = file
             else:
+                logging.info(f'THE SORUCE FAMILY IS f{job.get('source_family')}')
                 logging.error("[WORKER] The request is not in CLI/BROWSERS types")
                 job['result'] = None
                 job['status'] = const.Job_Status.FAILED.value # have to change it here, cuz of deadlockoo

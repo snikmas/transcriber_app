@@ -44,6 +44,7 @@ BROWSER_REQUESTS = {
     'Safari Mobile': 'Safari',
     'Safari': 'Safari',
     'Edge': 'Edge',
+    'ui': 'ui'
 }
 
 CLI_REQUESTS = {

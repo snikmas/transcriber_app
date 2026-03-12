@@ -66,9 +66,12 @@ async def transcribe(
 
     # 1. determine from there the request was send
     user_agent_header = request.headers.get('user-agent')
-    user_agent = parse(user_agent_header)
+    if request.headers.get('x-source'):
+        source_family = request.headers['x-source']
+    else:
+        user_agent = parse(user_agent_header)
+        source_family = user_agent.browser.family
 
-    source_family = user_agent.browser.family
     logging.info(source_family)
     
 
