@@ -352,6 +352,8 @@ url_video = st.text_input(
 _input_sig = (data.name if data else "", url_video.strip())
 if st.session_state.get("_input_sig") != _input_sig and st.session_state.get("show_result"):
     st.session_state["show_result"] = False
+    st.session_state.pop("transcript", None)
+    st.session_state.pop("jobs_id", None)
 if data or url_video.strip():
     st.session_state["_input_sig"] = _input_sig
 
@@ -416,7 +418,9 @@ if transcribe_btn or st.session_state.get("show_result"):
     st.divider()
 
     with st.spinner("Transcribing..."):
-        if not st.session_state.get("jobs_id"):
+        if st.session_state.get("transcript"):
+            pass  # already done, fall through to result section
+        elif not st.session_state.get("jobs_id"):
             # no job yet — submit
             if data:
                 response = requests.post('http://localhost:8000/transcribe', files={"file": (data.name, data, data.type)}, headers={"X-Source": "ui"})
@@ -426,39 +430,56 @@ if transcribe_btn or st.session_state.get("show_result"):
             time.sleep(3)
             st.rerun()
         else:
-            # job exists — check status
+            # job exists — poll status
             job_id = st.session_state["jobs_id"]
-            response = requests.get(f'http://localhost:8000/jobs/{job_id}')
-            result = response.json()["result"]
+            response = requests.get(f'http://localhost:8000/transcribe/{job_id}')
+            result = response.json()
 
-            if result is None:
-                time.sleep(3)
+            if result.get("message"):
+                if result.get('message') == 'the process is failed':
+                    st.session_state.pop("jobs_id", None)
+                    st.error("Transcription failed.")
+                    st.stop()
+                else:
+                    time.sleep(3)
+                    st.rerun()
+            elif result.get('result'):
+                st.session_state['transcript'] = result['result']
+                st.session_state.pop('jobs_id', None)
                 st.rerun()
-            elif result == "failed":
-                st.session_state.pop("jobs_id", None)
-                st.error("Transcription failed.")
-                st.stop()
+
+        if not st.session_state.get('transcript'):
+            st.stop()
+                
+
+                
             # if "done" — fall through, show result below
+
+    transcript_data = st.session_state["transcript"]
+    segments = transcript_data["transcript"]
+    duration   = transcript_data.get("duration", "—")
+    language   = transcript_data.get("language", "—")
+    word_count = sum(len(s["content"].split()) for s in segments)
 
     st.success("✓  Transcript ready")
 
     # ── Stats bar ──────────────────────────────────────────────────────────
-    st.markdown("""
+    st.markdown(f"""
     <div class="stats-row">
         <div class="stat-item">
-            <span class="stat-value">01:19</span>
+            <span class="stat-value">{duration}</span>
             <span class="stat-label">Duration</span>
         </div>
         <div class="stat-item">
-            <span class="stat-value">12</span>
+            <span class="stat-value">{len(segments)}</span>
             <span class="stat-label">Segments</span>
         </div>
         <div class="stat-item">
-            <span class="stat-value">148</span>
+            <span class="stat-value">{word_count}</span>
             <span class="stat-label">Words</span>
         </div>
         <div class="stat-item">
-            <span class="stat-value">en</span>
+            <span class="stat-value">{language}</span>
             <span class="stat-label">Language</span>
         </div>
     </div>
@@ -469,11 +490,11 @@ if transcribe_btn or st.session_state.get("show_result"):
                 unsafe_allow_html=True)
 
     lines_html = ""
-    for start, end, text in MOCK_TRANSCRIPT:
-        safe_text = _html.escape(text)
+    for seg in segments:
+        safe_text = _html.escape(seg["content"])
         lines_html += f"""
         <div class="transcript-line">
-            <span class="transcript-ts">[{start} → {end}]</span>
+            <span class="transcript-ts">[{seg["start_t"]} → {seg["end_t"]}]</span>
             <span class="transcript-text">{safe_text}</span>
         </div>"""
 
@@ -490,21 +511,21 @@ if transcribe_btn or st.session_state.get("show_result"):
     st.markdown('<div class="section-label" style="margin-top:1.4rem">05 — Download</div>',
                 unsafe_allow_html=True)
 
-    mock_txt  = "\n".join(
-        f"[{s} → {e}]  {t}" for s, e, t in MOCK_TRANSCRIPT
+    out_txt  = "\n".join(
+        f"[{s['start_t']} → {s['end_t']}]  {s['content']}" for s in segments
     )
-    mock_json = json.dumps(
-        [{"start": s, "end": e, "text": t} for s, e, t in MOCK_TRANSCRIPT],
+    out_json = json.dumps(
+        [{"start": s["start_t"], "end": s["end_t"], "text": s["content"]} for s in segments],
         ensure_ascii=False, indent=2
     )
-    mock_md   = "\n".join(
-        f"**[{s} → {e}]** {t}" for s, e, t in MOCK_TRANSCRIPT
+    out_md   = "\n".join(
+        f"**[{s['start_t']} → {s['end_t']}]** {s['content']}" for s in segments
     )
 
     selected_formats = []
-    if fmt_txt:  selected_formats.append(("TXT",      mock_txt,  "transcript.txt",  "text/plain"))
-    if fmt_json: selected_formats.append(("JSON",     mock_json, "transcript.json", "application/json"))
-    if fmt_md:   selected_formats.append(("Markdown", mock_md,   "transcript.md",   "text/markdown"))
+    if fmt_txt:  selected_formats.append(("TXT",      out_txt,  "transcript.txt",  "text/plain"))
+    if fmt_json: selected_formats.append(("JSON",     out_json, "transcript.json", "application/json"))
+    if fmt_md:   selected_formats.append(("Markdown", out_md,   "transcript.md",   "text/markdown"))
 
     if not selected_formats:
         st.warning("Select at least one output format above.")
@@ -519,10 +540,6 @@ if transcribe_btn or st.session_state.get("show_result"):
                     mime=mime,
                     use_container_width=True,
                 )
-
-    # ── Expander: raw view ─────────────────────────────────────────────────
-    with st.expander("▸  Raw JSON output"):
-        st.json([{"start": s, "end": e, "text": t} for s, e, t in MOCK_TRANSCRIPT])
 
 
 # ── Footer ─────────────────────────────────────────────────────────────────────
