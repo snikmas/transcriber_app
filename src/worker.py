@@ -79,5 +79,4 @@ def worker():
                 job['status'] = const.Job_Status.FAILED.value # have to change it here, cuz of deadlockoo
                 continue    
 
-        with lock: # if jobs,upate status is changing it.. 
-            jobs.update_status(job_id, const.Job_Status.DONE)
+        jobs.update_status(job_id, const.Job_Status.DONE)
