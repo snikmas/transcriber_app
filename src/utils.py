@@ -14,16 +14,26 @@ import tempfile
 load_dotenv()
 
 
+# by default, yt_api returns ISO 8601 object: PT1H30M455
+# isodate by default gives you a xx:xx:xx format. we do these things cuz IF there're a microseconds? we could get weird result
 def formatting_seconds(seconds: int | None = None, yt_duration: str | None = None) -> str:
-    if yt_duration is None and seconds == 0: return str(timedelta(0))
     if seconds is not None:   
       return str(timedelta(seconds=int(round(seconds))))
-    else:                                                                                 
-      return str(timedelta(seconds=int(isodate.parse_duration(yt_duration).total_seconds())))      
+    elif yt_duration is not None:                                       
+        try:
+            return str(timedelta(seconds=int(isodate.parse_duration(yt_duration).total_seconds())))      
+        except isodate.ISO8601Error as e:
+            logging.error(f"Error: {e}")
+        except Exception as e:
+            logging.error(f"Error during parsing duratioon (wrong format / overflow) {e}")
+    else:
+        return '0:00:00'
      
 
 async def determine_type(file: UploadFile) -> str:
-    content = await file.read(2048)
+    if file is None: raise TypeError
+
+    content = await file.read()
     await file.seek(0)
 
     with tempfile.NamedTemporaryFile(delete=False) as tf:
@@ -36,11 +46,14 @@ async def determine_type(file: UploadFile) -> str:
         os.unlink(tmp_path)    
     
     logging.info(mime_type)
+    print(mime_type)
     if mime_type in ALLOWED_VIDEO_TYPES: return ALLOWED_VIDEO_TYPES.get(mime_type)
     elif mime_type in ALLOWED_AUDIO_TYPES: return ALLOWED_AUDIO_TYPES.get(mime_type)
     else: return None
 
 def parsing_url(url: str) -> str:
+    if url is None: raise TypeError #or raise an error?
+
     parsed_url = urlparse(url)
     params = parse_qs(parsed_url.query)
     video_id = params.get('v', [None])[0]

@@ -67,7 +67,7 @@ def delete_job(job_id: str) -> None:
     
     with lock:
         try:
-            removed_job = all_jobs.pop(job_id)
+            all_jobs.pop(job_id)
         except KeyError:
             logging.error(f"[jobs]: no key {KeyError}")
             raise KeyError

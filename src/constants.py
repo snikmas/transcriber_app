@@ -15,7 +15,7 @@ ALLOWED_AUDIO_TYPES = {
     "audio/webm": "webm",
     "audio/aac": "aac",
     "audio/flac": "flac",
-    "audio/mp4": "m4a",
+    "audio/mp4": "mp4", 
     "audio/x-m4a": "m4a",
     "audio/opus": "opus",
     "audio/amr": "amr",
