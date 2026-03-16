@@ -62,7 +62,7 @@ def parsing_url(url: str) -> str:
     
 
 
-
+# no need to test
 def parse_proxy(proxy: str):
     parsed_proxy = urlparse(proxy)
     logging.info(parsed_proxy)
