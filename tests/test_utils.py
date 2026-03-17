@@ -1,7 +1,7 @@
 import pytest
 import src.utils as ut
 import pytest_asyncio 
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, patch
 
 # 1) formatting secconds
 def test_formatting_seconds_only_seconds_basic():

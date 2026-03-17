@@ -17,17 +17,18 @@ model_size = 'tiny'
 model = WhisperModel(model_size, device='cpu', compute_type="int8")
 
 def save_file(source: UploadFile) -> Path:
-    temp_file_path = temp_dir / f"temp_{source.filename}"
+    try:
+        temp_file_path = temp_dir / f"temp_{source.filename}"
 
-    with open (temp_file_path, 'wb') as buffer:
-        shutil.copyfileobj(source.file, buffer)
-    
+        with open (temp_file_path, 'wb') as buffer:
+            shutil.copyfileobj(source.file, buffer)
+    except AttributeError: 
+        raise AttributeError("[parsers] None type")
     return temp_file_path
 
 
 def parse_to_file(full_info: dict | None = None, json_info: str | None = None) -> Path:  
 
-    logging.info(f"temp_file: {temp_file}")
     try:
         with open (temp_file, 'w') as fp:
             if full_info is not None:

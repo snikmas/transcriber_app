@@ -104,7 +104,7 @@ async def transcribe(
         raise HTTPException(status_code=400, detail={'message': 'No url, no file in the request'})
                 
     jobs_id = jobs.create_job(
-        file_path=file_path, 
+        filepath=file_path, 
         filename=filename, 
         source_family=source_family, 
         file_type=file_type, 
