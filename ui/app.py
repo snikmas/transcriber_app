@@ -423,16 +423,16 @@ if transcribe_btn or st.session_state.get("show_result"):
         elif not st.session_state.get("jobs_id"):
             # no job yet — submit
             if data:
-                response = requests.post('http://localhost:8000/transcribe', files={"file": (data.name, data, data.type)}, headers={"X-Source": "ui"})
+                response = requests.post('http://api:8000/transcribe', files={"file": (data.name, data, data.type)}, headers={"X-Source": "ui"})
             else:
-                response = requests.post('http://localhost:8000/transcribe', params={"url": url_video.strip()}, headers={"X-Source": "ui"})
+                response = requests.post('http://api:8000/transcribe', params={"url": url_video.strip()}, headers={"X-Source": "ui"})
             st.session_state["jobs_id"] = response.json()["jobs_id"]
             time.sleep(3)
             st.rerun()
         else:
             # job exists — poll status
             job_id = st.session_state["jobs_id"]
-            response = requests.get(f'http://localhost:8000/transcribe/{job_id}')
+            response = requests.get(f'http://api:8000/transcribe/{job_id}')
             result = response.json()
 
             if result.get("message"):
