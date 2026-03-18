@@ -19,7 +19,7 @@ def test_save_to_file_default():
     m = mock_open()
 
     with patch('builtins.open', m):
-        result = write_to_file(path, fake_content)
+        write_to_file(path, fake_content)
 
     m.assert_called_once_with(path, 'wb') # right arguments?
     m().write.assert_called_once_with(fake_content)
@@ -87,8 +87,8 @@ def test_parsed_res_only_fetched_transcript():
     assert isinstance(res, dict)
 
 def test_parsed_res_none_returns_type_error():
-    with pytest.raises(TypeError):
-        parsers(None, None, None, None)
+    with pytest.raises(AttributeError):
+        parsers.parsed_res(None, None, None, None)
 
 def test_parsed_res_if_not_full_data():
     all_segments = []
