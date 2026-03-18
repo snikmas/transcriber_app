@@ -12,6 +12,8 @@ A FastAPI service that transcribes audio/video files and YouTube videos, with a 
 **Files:** uses faster-whisper (offline, CPU) to transcribe locally
 **YouTube URLs:** fetches subtitles via `youtube-transcript-api`
 
+> **Note:** YouTube URL transcription is temporarily unavailable. YouTube blocks subtitle API requests from non-residential IPs. File upload transcription works normally.
+
 ## Stack
 
 - FastAPI + threading (single background worker queue)

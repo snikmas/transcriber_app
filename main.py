@@ -62,6 +62,7 @@ async def transcribe(
     logging.info("in transcribe")
 
     if bool(url) == bool(file) :
+        # logging.info('NO ANYTHING??')
         raise HTTPException(status_code=400, detail="You must provide a file or a url")
 
     # 1. determine from there the request was send
@@ -111,7 +112,6 @@ async def transcribe(
         is_url=url
         )
         
-
     
     logging.info("Job created")
     return {"jobs_id": jobs_id}

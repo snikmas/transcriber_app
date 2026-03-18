@@ -28,36 +28,38 @@ def worker():
     
             except Exception as e:
                 with lock:
-                    job['status'] = const.Job_Status.FAILED.value
-                database.update_job(job_id=job_id, status=const.Job_Status.FAILED.value)
+                    job['status'] = const.Job_Status.FAILED
+                database.update_job(job_id=job_id, status=const.Job_Status.FAILED)
                 logging.error(f'[WORKER]: {e}')
                 continue
 
         else: # is a url
             try:
                 id = utils.parsing_url(job.get('is_url'))  
-            
+
                 subtitles_json = extractor.get_subtitles(id)
+                logging.info(f"this is subtitles: {subtitles_json}")
                 video_info = extractor.get_video_info(id)
+            
             except Exception as e:
-                logging.error(f'[WORKER]: problem with parsing / getting subtitles/video info')
+                logging.error(f'[WORKER]: problem with parsing / getting subtitles/video info: {e}', exc_info=True)
                 with lock:
-                    job['status'] = const.Job_Status.FAILED.value
-                jobs.update_status(job_id=job_id, status=const.Job_Status.FAILED.value)
+                    job['status'] = const.Job_Status.FAILED
+                jobs.update_status(job_id=job_id, status=const.Job_Status.FAILED)
                 continue
             try:
                 result_json = video_info | subtitles_json
             except ValueError:
                 logging.error(f'[WORKER]: {ValueError}')
                 with lock:
-                    job['status'] = const.Job_Status.FAILED.value
-                jobs.update_status(job_id=job_id, status=const.Job_Status.FAILED.value)
+                    job['status'] = const.Job_Status.FAILED
+                jobs.update_status(job_id=job_id, status=const.Job_Status.FAILED)
                 continue
             except NameError:
                 logging.error(f'[WORKER]: {NameError}')
                 with lock: # does it make sense changing here by ahnd and not to do jobs,update status? ith ink no. + there you can do db update
-                    job['status'] = const.Job_Status.FAILED.value
-                jobs.update_status(job_id=job_id, status=const.Job_Status.FAILED.value)
+                    job['status'] = const.Job_Status.FAILED
+                jobs.update_status(job_id=job_id, status=const.Job_Status.FAILED)
                 continue
 
             
@@ -76,7 +78,7 @@ def worker():
                 logging.info(f'THE SORUCE FAMILY IS f{job.get('source_family')}')
                 logging.error("[WORKER] The request is not in CLI/BROWSERS types")
                 job['result'] = None
-                job['status'] = const.Job_Status.FAILED.value # have to change it here, cuz of deadlockoo
+                job['status'] = const.Job_Status.FAILED # have to change it here, cuz of deadlockoo
                 continue    
 
         jobs.update_status(job_id, const.Job_Status.DONE)

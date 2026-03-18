@@ -3,12 +3,9 @@ from unittest.mock import Mock, MagicMock, patch, mock_open
 from pathlib import Path
 with patch('faster_whisper.WhisperModel'):
     import src.parsers as parsers
-#functions
-# 1) save_file(source)
-# - check that it really saves file
-# - check what if the file is corrupted - no need - it's always saves everytohng
-# - check if there're None
 
+
+# 1) save_file(source)
 def write_to_file(path: str, content: bytes):
     with open (path, 'wb') as handle:
         handle.write(content)
@@ -30,9 +27,6 @@ def test_save_file_none():
         parsers.save_file(None) #i tihnk i have to pass mock
         
 # 2) prase_to_file()
-# - check that it works for full_info / json_info
-# - check what if there're nothing
-# - chech if there're both of them
 def test_parse_to_file_full_info():
     full_info = {"info_1": "sometinhg"}
     path_res = parsers.parse_to_file(full_info)
@@ -48,12 +42,6 @@ def test_parse_to_file_none():
         parsers.parse_to_file(None, None)
 
 # 3) parsed_res
-# - check if all_gsegments ok 
-# - check if tf ther're fetched transcript ok
-# - check if everytihng there (but maybe no need to check, there're if elif else statement, nohting wrong
-# - check what if there' nohting)
-# - check what if the data doesn't exist/ corrupted
-
 def create_segment_mock(start, end, text, duration):
     seg = MagicMock()
     seg.start = start
@@ -62,8 +50,7 @@ def create_segment_mock(start, end, text, duration):
     seg.text = text
     return seg
 
-def test_parsed_res_default(): # crate a test with broken? idk
-    # not good? cuz it checks for types, not for json
+def test_parsed_res_default(): # crate a test with broken? 
     all_segments = []
     all_segments.append(create_segment_mock(12, 23, "this is the best text ever", 123))
     all_segments.append(create_segment_mock(32, 344, "this is the second best text ever", 555))

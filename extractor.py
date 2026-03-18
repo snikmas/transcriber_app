@@ -5,13 +5,12 @@ import src.parsers as parsers
 import os
 from dotenv import load_dotenv
 import src.utils as utils
-from youtube_transcript_api import YouTubeTranscriptApi
-from youtube_transcript_api.formatters import JSONFormatter
-from youtube_transcript_api.proxies import GenericProxyConfig
 from googleapiclient.discovery import build
+import yt_dlp
+import json
+import tempfile
 
 load_dotenv()
-formatter = JSONFormatter()
 
 
 def extract_audio(temp_file: Path) -> Path:
@@ -25,33 +24,48 @@ def extract_audio(temp_file: Path) -> Path:
         raise e
     
 
-def get_subtitles(id: str) -> dict:    
+def get_subtitles(id: str) -> dict:
+    url = f'https://www.youtube.com/watch?v={id}'
 
-    ytt_api = YouTubeTranscriptApi(proxy_config=GenericProxyConfig(
-        http_url=os.getenv("PROXY"),
-        https_url=os.getenv("PROXY"),
-    ))
+    with tempfile.TemporaryDirectory() as tmpdir:
+        ydl_opts = {
+            'writesubtitles': True,
+            'writeautomaticsub': True,
+            'subtitleslangs': ['en'],
+            'subtitlesformat': 'json3',
+            'skip_download': True,
+            'proxy': os.getenv('PROXY'),
+            'outtmpl': f'{tmpdir}/%(id)s',
+            'quiet': True,
+        }
 
-    transcript_list = ytt_api.list(id)
-    try: 
-        transcript = transcript_list.find_manually_created_transcript(['en'])
-    
-    except ValueError:
-        logging.error(f"[EXTRACTOR] can't get manually transcript. trying to get automatic..")
-        transcript = transcript_list.find_transcript(['en'])
-    except Exception as e:
-        raise Exception(f"[extractor]: {e}")
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            ydl.download([url])
 
-    try:
-        subtitles = transcript.fetch()
-        logging.info(f'{type(subtitles)}')
-        result_json = parsers.parsed_res(fetched_transcript=subtitles) 
-        # fi none... ok, it's none
-    except Exception as e:
-        raise Exception(f'[Extractor] {e}')
+        json_files = list(Path(tmpdir).glob('*.json3'))
+        if not json_files:
+            raise Exception(f'[extractor] No subtitles found for {id}')
 
+        with open(json_files[0]) as f:
+            subtitle_data = json.load(f)
 
-    return result_json
+    transcript = []
+    for event in subtitle_data.get('events', []):
+        if 'segs' not in event:
+            continue
+        start_ms = event.get('tStartMs', 0)
+        duration_ms = event.get('dDurationMs', 0)
+        text = ''.join(seg.get('utf8', '') for seg in event['segs']).strip()
+        if not text:
+            continue
+        transcript.append({
+            'start_t': utils.formatting_seconds(start_ms / 1000),
+            'end_t': utils.formatting_seconds((start_ms + duration_ms) / 1000),
+            'content': text,
+        })
+
+    logging.info(f'[extractor] got {len(transcript)} subtitle entries')
+    return {"transcript": transcript}
     
 
 def get_video_info(id: str) -> dict:
@@ -69,6 +83,7 @@ def get_video_info(id: str) -> dict:
 
     items = response.get('items', [])
     if not items: 
+        logging.info("not items??\n\n")
         return {}
     
     snippet = items[0]['snippet']
