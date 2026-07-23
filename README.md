@@ -1,25 +1,26 @@
 # Transcriber
- check this
-A FastAPI service that transcribes audio/video files and YouTube videos, with a Streamlit UI.
+
+FastAPI service that transcribes uploaded audio/video files locally with faster-whisper, plus a small Streamlit UI.
+
+**Portfolio demo of:** async jobs, file upload API, worker queue, SQLite persistence, local ML inference, simple frontend.
+
+> File upload transcription works. YouTube URL mode is temporarily unreliable because YouTube often blocks subtitle API calls from non-residential IPs.
 
 ## What it does
 
-- Accepts a file upload (audio/video) or a YouTube URL via `POST /transcribe`
+- Accepts a file upload (audio/video) via `POST /transcribe`
+- Optionally accepts a YouTube URL (best-effort; may fail off residential networks)
 - Creates a background job and returns a job ID
-- Worker processes the job: extracts audio from video if needed, then transcribes
-- Poll `GET /transcribe/{job_id}` to check status and get the result
-
-**Files:** uses faster-whisper (offline, CPU) to transcribe locally
-**YouTube URLs:** fetches subtitles via `youtube-transcript-api`
-
-> **Note:** YouTube URL transcription is temporarily unavailable. YouTube blocks subtitle API requests from non-residential IPs. File upload transcription works normally.
+- Worker extracts audio if needed, then transcribes
+- Client polls `GET /transcribe/{job_id}` for status/result
+- Streamlit UI can download transcript as TXT, JSON, or Markdown
 
 ## Stack
 
-- FastAPI + threading (single background worker queue)
-- faster-whisper (tiny model, CPU, int8)
+- FastAPI + background worker thread
+- faster-whisper (tiny model, CPU, int8) for local offline file transcription
 - ffmpeg for audio extraction from video
-- yt-dlp + youtube-transcript-api for YouTube subtitles
+- yt-dlp + youtube-transcript-api for YouTube path
 - SQLite for job persistence
 - Streamlit UI
 
@@ -27,18 +28,21 @@ A FastAPI service that transcribes audio/video files and YouTube videos, with a 
 
 | Method | Path | Description |
 |--------|------|-------------|
-| `POST` | `/transcribe` | Submit a file or URL, returns `jobs_id` |
+| `POST` | `/transcribe` | Submit a file or URL, returns `job_id` |
 | `GET` | `/transcribe/{job_id}` | Poll job status / get result |
 | `GET` | `/jobs` | List all jobs |
 | `DELETE` | `/jobs/{job_id}` | Delete a job |
 
 ### POST /transcribe
 
-Send either a file:
-```
+Send a file:
+
+```text
 multipart/form-data  →  file=<upload>
 ```
+
 Or a URL:
+
 ```json
 { "url": "https://www.youtube.com/watch?v=..." }
 ```
@@ -48,17 +52,23 @@ Set `X-Source: ui` header to identify requests from the UI. CLI tools (curl, pyt
 ### GET /transcribe/{job_id}
 
 While processing:
+
 ```json
 { "message": "in process..." }
+```
+
+```json
 { "message": "is queued" }
 ```
 
 On failure:
+
 ```json
 { "message": "the process is failed" }
 ```
- check 
+
 On success:
+
 ```json
 {
   "result": {
@@ -75,20 +85,31 @@ On success:
 
 YouTube results return only `transcript` (no filename/duration/language).
 
-## UI
-
-Run the API first, then the UI:
+## Quick start
 
 ```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+
+# terminal 1 — API
 uvicorn main:app --reload
+
+# terminal 2 — UI
 streamlit run ui/app.py
 ```
 
-The UI polls the job until complete, then displays the transcript with stats (duration, segments, word count, language) and download buttons for TXT, JSON, and Markdown.
+Optional Docker:
+
+```bash
+docker compose up --build
+```
+
+The UI polls the job until complete, then shows transcript stats (duration, segments, word count, language) and download buttons.
 
 ## Project structure
 
-```
+```text
 main.py              — FastAPI app, route definitions
 src/
   worker.py          — background thread, processes jobs from queue
@@ -102,3 +123,7 @@ extractor.py         — ffmpeg audio extraction, yt-dlp, YouTube API
 ui/
   app.py             — Streamlit frontend
 ```
+
+## Hire / reuse note
+
+Useful reference if you need a small media → text backend, local speech-to-text prototype, or async job API pattern in Python.
