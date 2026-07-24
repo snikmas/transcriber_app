@@ -1,87 +1,30 @@
-import pytest
-from unittest.mock import Mock, MagicMock, patch, mock_open
-from pathlib import Path
-with patch('faster_whisper.WhisperModel'):
-    import src.parsers as parsers
+from types import SimpleNamespace
+
+from src.parsers import build_result, format_timestamp
 
 
-# 1) save_file(source)
-def write_to_file(path: str, content: bytes):
-    with open (path, 'wb') as handle:
-        handle.write(content)
+def test_format_timestamp():
+    assert format_timestamp(0) == "0:00:00"
+    assert format_timestamp(213) == "0:03:33"
+    assert format_timestamp(-2) == "0:00:00"
 
-def test_save_to_file_default():
-    path = '/home/snikmas/video_1.mp4'
-    fake_content = b'line1\nline1\n'
-    m = mock_open()
 
-    with patch('builtins.open', m):
-        write_to_file(path, fake_content)
+def test_build_result_creates_text_and_metadata():
+    segments = [
+        SimpleNamespace(start=0, end=2.4, text=" Hello world. "),
+        SimpleNamespace(start=2.4, end=5, text="Second segment."),
+    ]
 
-    m.assert_called_once_with(path, 'wb') # right arguments?
-    m().write.assert_called_once_with(fake_content)
-    
-        
-def test_save_file_none():
-    with pytest.raises(AttributeError):
-        parsers.save_file(None) #i tihnk i have to pass mock
-        
-# 2) prase_to_file()
-def test_parse_to_file_full_info():
-    full_info = {"info_1": "sometinhg"}
-    path_res = parsers.parse_to_file(full_info)
-    assert isinstance(path_res, Path)
+    result = build_result(
+        filename="sample.wav",
+        segments=segments,
+        duration_seconds=5,
+        language="en",
+        language_probability=0.95,
+        engine="test",
+    )
 
-def test_parse_to_file_json_info():
-    json_info = '{"info_1": "sometinhg"}'
-    path_res = parsers.parse_to_file(json_info=json_info)
-    assert isinstance(path_res, Path)
-
-def test_parse_to_file_none():
-    with pytest.raises(TypeError):
-        parsers.parse_to_file(None, None)
-
-# 3) parsed_res
-def create_segment_mock(start, end, text, duration):
-    seg = MagicMock()
-    seg.start = start
-    seg.end = end
-    seg.duration = duration
-    seg.text = text
-    return seg
-
-def test_parsed_res_default(): # crate a test with broken? 
-    all_segments = []
-    all_segments.append(create_segment_mock(12, 23, "this is the best text ever", 123))
-    all_segments.append(create_segment_mock(32, 344, "this is the second best text ever", 555))
-    
-    # or do mock type?
-    info = Mock()
-    info.duration = 20
-    info.language = 'en'
-    info.language_probability = 0.32
-
-    res = parsers.parsed_res(all_segments=all_segments, filename="file_name", info=info)
-    assert isinstance(res, dict)
-
-def test_parsed_res_only_fetched_transcript():
-    fetched_transcript = []
-    fetched_transcript.append(create_segment_mock(12, 122, "this is the best text ever", 123))
-    fetched_transcript.append(create_segment_mock(124, 134, "this is the second best text ever", 555))
-    
-    res = parsers.parsed_res(fetched_transcript=fetched_transcript, filename="file_name")
-
-    assert isinstance(res, dict)
-
-def test_parsed_res_none_returns_type_error():
-    with pytest.raises(AttributeError):
-        parsers.parsed_res(None, None, None, None)
-
-def test_parsed_res_if_not_full_data():
-    all_segments = []
-    all_segments.append(create_segment_mock(12, 32, "this is the best text ever", 123))
-    all_segments.append(create_segment_mock(123, 324, "this is the second best text ever", 555))
-    
-    with pytest.raises(AttributeError):
-        parsers.parsed_res(all_segments=all_segments)
-    
+    assert result["text"] == "Hello world. Second segment."
+    assert result["word_count"] == 4
+    assert result["segments"][0]["start_text"] == "0:00:00"
+    assert result["language"] == "EN"

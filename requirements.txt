@@ -1,20 +1,9 @@
-fastapi
-uvicorn
-python-multipart
-faster-whisper
-yt-dlp
-ffmpeg-python
-streamlit
-requests
-python-dotenv
-python-magic
-isodate
-httplib2
-google-api-python-client
-user-agents
-
-# Dev
-pytest
-httpx
-ruff
-pytest-asyncio
+# Python 3.12
+fastapi>=0.116,<1
+uvicorn[standard]>=0.35,<1
+python-multipart>=0.0.20,<1
+pydantic>=2.11,<3
+streamlit>=1.47,<2
+requests>=2.32,<3
+faster-whisper>=1.2,<2
+socksio>=1.0,<2

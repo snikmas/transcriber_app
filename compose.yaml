@@ -1,0 +1,38 @@
+services:
+  api:
+    build: .
+    environment:
+      TRANSCRIBER_MODE: ${TRANSCRIBER_MODE:-demo}
+      WHISPER_MODEL: ${WHISPER_MODEL:-tiny}
+      WHISPER_DEVICE: ${WHISPER_DEVICE:-cpu}
+      WHISPER_COMPUTE_TYPE: ${WHISPER_COMPUTE_TYPE:-int8}
+      WHISPER_OFFLINE: ${WHISPER_OFFLINE:-false}
+      DATABASE_PATH: /app/data/jobs.sqlite3
+      UPLOAD_DIR: /app/data/uploads
+      MAX_UPLOAD_MB: ${MAX_UPLOAD_MB:-100}
+    ports:
+      - "8000:8000"
+    volumes:
+      - transcriber-data:/app/data
+      - whisper-cache:/root/.cache/huggingface
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  ui:
+    build: .
+    command: ["streamlit", "run", "ui/app.py", "--server.address=0.0.0.0", "--server.port=8501"]
+    environment:
+      API_URL: http://api:8000
+      POLL_INTERVAL_SECONDS: ${POLL_INTERVAL_SECONDS:-0.5}
+    ports:
+      - "8501:8501"
+    depends_on:
+      api:
+        condition: service_healthy
+
+volumes:
+  transcriber-data:
+  whisper-cache:

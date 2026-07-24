@@ -1,84 +1,72 @@
-import src.parsers as parsers
-import src.jobs as jobs
-import src.utils as utils
-import src.constants as const
+from __future__ import annotations
+
 import logging
-import extractor
-import src.transcriber as transcriber 
-from src.jobs import lock
+import shutil
+import threading
+from pathlib import Path
+from queue import Queue
 
-import src.database.database as database
+from src.constants import JobStatus
+from src.database.database import JobRepository
+from src.jobs import utc_now
+from src.transcriber import TranscriptionEngine
 
-def worker():
-    while True:
-        job_id = jobs.cur_queue.get()
-        with jobs.lock:
-            job = jobs.all_jobs[job_id]
-        jobs.update_status(job_id, const.Job_Status.PROCESSING)
-        logging.info(f'source family: {job.get('source_family')}')
 
-        if job.get('is_url') is None:
-            path = job.get("filepath")
-            
-            logging.info('preapring to transcribe') 
+class TranscriptionWorker:
+    def __init__(
+        self,
+        repository: JobRepository,
+        job_queue: Queue[str],
+        engine: TranscriptionEngine,
+    ):
+        self.repository = repository
+        self.job_queue = job_queue
+        self.engine = engine
+        self._thread: threading.Thread | None = None
+
+    def start(self) -> None:
+        if self._thread and self._thread.is_alive():
+            return
+        self._thread = threading.Thread(
+            target=self.run,
+            name="transcription-worker",
+            daemon=True,
+        )
+        self._thread.start()
+
+    def run(self) -> None:
+        while True:
+            job_id = self.job_queue.get()
             try:
-                res, info = transcriber.transcribe_file(path)
-                
-                result_json = parsers.parsed_res(res, info, job.get("filename"))
-    
-            except Exception as e:
-                with lock:
-                    job['status'] = const.Job_Status.FAILED
-                database.update_job(job_id=job_id, status=const.Job_Status.FAILED)
-                logging.error(f'[WORKER]: {e}')
-                continue
+                self.process(job_id)
+            finally:
+                self.job_queue.task_done()
 
-        else: # is a url
-            try:
-                id = utils.parsing_url(job.get('is_url'))  
-
-                subtitles_json = extractor.get_subtitles(id)
-                logging.info(f"this is subtitles: {subtitles_json}")
-                video_info = extractor.get_video_info(id)
-            
-            except Exception as e:
-                logging.error(f'[WORKER]: problem with parsing / getting subtitles/video info: {e}', exc_info=True)
-                with lock:
-                    job['status'] = const.Job_Status.FAILED
-                jobs.update_status(job_id=job_id, status=const.Job_Status.FAILED)
-                continue
-            try:
-                result_json = video_info | subtitles_json
-            except ValueError:
-                logging.error(f'[WORKER]: {ValueError}')
-                with lock:
-                    job['status'] = const.Job_Status.FAILED
-                jobs.update_status(job_id=job_id, status=const.Job_Status.FAILED)
-                continue
-            except NameError:
-                logging.error(f'[WORKER]: {NameError}')
-                with lock: # does it make sense changing here by ahnd and not to do jobs,update status? ith ink no. + there you can do db update
-                    job['status'] = const.Job_Status.FAILED
-                jobs.update_status(job_id=job_id, status=const.Job_Status.FAILED)
-                continue
-
-            
-
-        with jobs.lock:
-
-            logging.info(f'source family: {job.get('source_family')}')
-        
-            if job.get('source_family') in const.CLI_REQUESTS:
-                job['result'] = result_json
-            elif job.get('source_family') in const.BROWSER_REQUESTS:
-                file = parsers.parse_to_file(full_info=result_json)
-                job['result'] = result_json
-                job['download_url'] = file
-            else:
-                logging.info(f'THE SORUCE FAMILY IS f{job.get('source_family')}')
-                logging.error("[WORKER] The request is not in CLI/BROWSERS types")
-                job['result'] = None
-                job['status'] = const.Job_Status.FAILED # have to change it here, cuz of deadlockoo
-                continue    
-
-        jobs.update_status(job_id, const.Job_Status.DONE)
+    def process(self, job_id: str) -> None:
+        job = self.repository.get(job_id)
+        if not job:
+            return
+        input_path = Path(job["input_path"])
+        try:
+            self.repository.update(
+                job_id,
+                status=JobStatus.PROCESSING,
+                updated_at=utc_now(),
+            )
+            result = self.engine.transcribe(input_path, job["filename"])
+            self.repository.update(
+                job_id,
+                status=JobStatus.COMPLETED,
+                updated_at=utc_now(),
+                result=result,
+            )
+        except Exception as exc:
+            logging.exception("Transcription job %s failed", job_id)
+            self.repository.update(
+                job_id,
+                status=JobStatus.FAILED,
+                updated_at=utc_now(),
+                error=str(exc)[:500],
+            )
+        finally:
+            shutil.rmtree(input_path.parent, ignore_errors=True)

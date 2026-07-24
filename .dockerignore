@@ -1,6 +1,10 @@
-.venv                                                                             
-.git            
+.git
+.github
+.venv
 __pycache__
-*.db
+.pytest_cache
+.ruff_cache
 .env
-.pytest_cache  
+data
+*.db
+assets

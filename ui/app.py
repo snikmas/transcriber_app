@@ -1,555 +1,238 @@
-import json
-import html as _html
-import streamlit as st
-import requests
-import time
+from __future__ import annotations
 
-# ── Page config ────────────────────────────────────────────────────────────────
+import html
+import os
+import time
+from pathlib import Path
+
+import requests
+import streamlit as st
+
+from src.exports import transcript_json, transcript_markdown, transcript_txt
+
+API_URL = os.getenv("API_URL", "http://localhost:8000").rstrip("/")
+POLL_INTERVAL = float(os.getenv("POLL_INTERVAL_SECONDS", "0.5"))
+SAMPLE_PATH = Path(__file__).resolve().parents[1] / "samples" / "northstar-demo.wav"
+
 st.set_page_config(
-    page_title="Transcriber",
+    page_title="Private Local Transcriber",
     page_icon="🎙️",
     layout="centered",
 )
 
-# ── Custom CSS ─────────────────────────────────────────────────────────────────
-st.markdown("""
-<style>
-@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap');
-
-/* ── Root ── */
-:root {
-    --bg:        #0d0e11;
-    --surface:   #14161b;
-    --border:    #272a32;
-    --accent:    #e8ff47;
-    --accent-dim:#b8cc2e;
-    --text:      #e4e6ed;
-    --muted:     #5a5f72;
-    --success:   #3dffa0;
-    --error:     #ff4b6e;
-    --warning:   #ffb347;
-}
-
-/* ── Base resets ── */
-html, body, [class*="css"], [class*="st-emotion-cache"] {
-    background-color: var(--bg) !important;
-    color: var(--text) !important;
-    font-family: 'IBM Plex Sans', sans-serif !important;
-}
-
-/* ── Hide default streamlit chrome ── */
-#MainMenu, footer, header { visibility: hidden; }
-.block-container { padding-top: 2rem !important; padding-bottom: 2rem !important; max-width: 720px !important; }
-
-/* ── Headings ── */
-h1, h2, h3 {
-    font-family: 'IBM Plex Mono', monospace !important;
-    letter-spacing: -0.02em;
-}
-
-/* ── Reduce Streamlit's default vertical gap ── */
-[data-testid="stVerticalBlock"] {
-    gap: 0.4rem !important;
-}
-
-/* ── Divider ── */
-hr {
-    border: none !important;
-    border-top: 1px solid var(--border) !important;
-    margin: 1rem 0 !important;
-}
-
-/* ── Custom label override (mono, small, muted) ── */
-label,
-[data-testid="stFileUploader"] label p,
-[data-testid="stTextInput"] label p {
-    font-family: 'IBM Plex Mono', monospace !important;
-    font-size: 0.72rem !important;
-    text-transform: uppercase !important;
-    letter-spacing: 0.1em !important;
-    color: var(--muted) !important;
-}
-
-/* ── File uploader ── */
-[data-testid="stFileUploader"] section {
-    background: var(--surface) !important;
-    border: 1px dashed var(--border) !important;
-    border-radius: 4px !important;
-    transition: border-color 0.2s;
-}
-[data-testid="stFileUploader"] section:hover {
-    border-color: var(--accent) !important;
-}
-[data-testid="stFileUploaderDeleteBtn"] {
-    color: var(--muted) !important;
-}
-
-/* ── Text input ── */
-[data-testid="stTextInput"] input {
-    backgro und: var(--surface) !important;
-    border: 1px solid var(--border) !important;
-    border-radius: 4px !important;
-    color: var(--text) !important;
-    font-family: 'IBM Plex Mono', monospace !important;
-    font-size: 0.85rem !important;
-}
-[data-testid="stTextInput"] input:focus {
-    border-color: var(--accent) !important;
-    box-shadow: 0 0 0 2px rgba(232,255,71,0.12) !important;
-}
-
-/* ── Checkboxes ── */
-[data-testid="stCheckbox"] span {
-    font-family: 'IBM Plex Mono', monospace !important;
-    font-size: 0.8rem !important;
-    color: var(--text) !important;
-}
-[data-testid="stCheckbox"] div[data-baseweb="checkbox"] div {
-    border-color: var(--border) !important;
-    border-width: 1px !important;
-    border-radius: 2px !important;
-}
-
-/* ── Primary button ── */
-[data-testid="baseButton-primary"] {
-    background: var(--accent) !important;
-    color: #0d0e11 !important;
-    font-family: 'IBM Plex Mono', monospace !important;
-    font-size: 0.8rem !important;
-    font-weight: 600 !important;
-    letter-spacing: 0.08em !important;
-    text-transform: uppercase !important;
-    border: none !important;
-    border-radius: 3px !important;
-    padding: 0.6rem 1.4rem !important;
-    transition: background 0.15s, transform 0.1s;
-}
-[data-testid="baseButton-primary"]:hover { background: var(--accent-dim) !important; }
-[data-testid="baseButton-primary"]:active { transform: scale(0.98) !important; }
-[data-testid="baseButton-primary"]:disabled {
-    background: var(--surface) !important;
-    color: var(--muted) !important;
-    border: 1px solid var(--border) !important;
-}
-
-/* ── Secondary / download buttons ── */
-[data-testid="baseButton-secondary"],
-[data-testid="stDownloadButton"] button {
-    background: transparent !important;
-    color: var(--text) !important;
-    font-family: 'IBM Plex Mono', monospace !important;
-    font-size: 0.75rem !important;
-    letter-spacing: 0.06em !important;
-    text-transform: uppercase !important;
-    border: 1px solid var(--border) !important;
-    border-radius: 3px !important;
-    transition: border-color 0.15s, color 0.15s;
-}
-[data-testid="baseButton-secondary"]:hover,
-[data-testid="stDownloadButton"] button:hover {
-    border-color: var(--accent) !important;
-    color: var(--accent) !important;
-}
-
-/* ── Expander (transcript viewer) ── */
-[data-testid="stExpander"] {
-    background: var(--surface) !important;
-    border: 1px solid var(--border) !important;
-    border-radius: 4px !important;
-}
-[data-testid="stExpander"] summary {
-    font-family: 'IBM Plex Mono', monospace !important;
-    font-size: 0.8rem !important;
-    text-transform: uppercase !important;
-    letter-spacing: 0.08em !important;
-    color: var(--muted) !important;
-}
-[data-testid="stExpander"] summary:hover {
-    color: var(--text) !important;
-}
-[data-testid="stExpander"] svg {
-    fill: var(--muted) !important;
-}
-
-/* ── Spinner ── */
-[data-testid="stSpinner"] p {
-    font-family: 'IBM Plex Mono', monospace !important;
-    font-size: 0.8rem !important;
-    color: var(--muted) !important;
-}
-
-/* ── Alert / notification boxes (dark theme override) ── */
-[data-testid="stAlert"],
-[data-testid="stAlert"] > div,
-[data-testid="stAlert"] > div > div {
-    background: var(--surface) !important;
-    background-color: var(--surface) !important;
-}
-[data-testid="stAlert"] {
-    border: 1px solid var(--border) !important;
-    border-left: 3px solid var(--muted) !important;
-    border-radius: 3px !important;
-    font-family: 'IBM Plex Mono', monospace !important;
-    font-size: 0.8rem !important;
-    color: var(--text) !important;
-}
-[data-testid="stAlert"] p,
-[data-testid="stAlert"] span {
-    color: var(--text) !important;
-    font-family: 'IBM Plex Mono', monospace !important;
-}
-[data-testid="stAlert"] svg {
-    flex-shrink: 0;
-}
-
-/* ── JSON viewer (inside expander) ── */
-[data-testid="stJson"] {
-    background: #0a0b0e !important;
-    border: 1px solid var(--border) !important;
-    border-radius: 4px !important;
-}
-[data-testid="stJson"] * {
-    font-family: 'IBM Plex Mono', monospace !important;
-    font-size: 0.76rem !important;
-}
-
-/* ── Scrollable transcript box ── */
-.transcript-box {
-    background: #0a0b0e;
-    border: 1px solid var(--border);
-    border-radius: 4px;
-    padding: 1.2rem 1.4rem;
-    max-height: 320px;
-    overflow-y: auto;
-    font-family: 'IBM Plex Mono', monospace;
-    font-size: 0.78rem;
-    line-height: 1.8;
-    color: var(--text);
-    scrollbar-width: thin;
-    scrollbar-color: var(--border) transparent;
-}
-.transcript-box::-webkit-scrollbar { width: 4px; }
-.transcript-box::-webkit-scrollbar-thumb {
-    background: var(--border);
-    border-radius: 2px;
-}
-.transcript-line { display: flex; gap: 1rem; margin-bottom: 0.4rem; }
-.transcript-ts {
-    color: var(--accent);
-    white-space: nowrap;
-    flex-shrink: 0;
-    font-size: 0.72rem;
-    padding-top: 0.05rem;
-}
-.transcript-text { color: var(--text); }
-
-/* ── Section labels ── */
-.section-label {
-    font-family: 'IBM Plex Mono', monospace;
-    font-size: 0.68rem;
-    text-transform: uppercase;
-    letter-spacing: 0.14em;
-    color: var(--muted);
-    margin-bottom: 0.6rem;
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-}
-.section-label::after {
-    content: '';
-    flex: 1;
-    height: 1px;
-    background: var(--border);
-}
-
-/* ── OR divider ── */
-.or-divider {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-    margin: 1.2rem 0;
-    font-family: 'IBM Plex Mono', monospace;
-    font-size: 0.7rem;
-    color: var(--muted);
-    letter-spacing: 0.1em;
-}
-.or-divider::before, .or-divider::after {
-    content: '';
-    flex: 1;
-    height: 1px;
-    background: var(--border);
-}
-
-/* ── Stat pills ── */
-.stats-row {
-    display: flex;
-    gap: 1.5rem;
-    margin: 1rem 0;
-    padding: 0.9rem 1.2rem;
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 4px;
-}
-.stat-item { display: flex; flex-direction: column; gap: 0.2rem; }
-.stat-value {
-    font-family: 'IBM Plex Mono', monospace;
-    font-size: 1.1rem;
-    font-weight: 600;
-    color: var(--accent);
-}
-.stat-label {
-    font-family: 'IBM Plex Mono', monospace;
-    font-size: 0.63rem;
-    text-transform: uppercase;
-    letter-spacing: 0.1em;
-    color: var(--muted);
-}
-</style>
-""", unsafe_allow_html=True)
-
-
-# ── Header ─────────────────────────────────────────────────────────────────────
-st.markdown("""
-<div style="margin-bottom: 0.2rem;">
-    <span style="font-family:'IBM Plex Mono',monospace; font-size:0.72rem;
-                 text-transform:uppercase; letter-spacing:0.14em; color:#5a5f72;">
-        ◼ v0.1 — audio / video → text
-    </span>
-</div>
-""", unsafe_allow_html=True)
-
-st.title("Transcriber")
-
-st.markdown("""
-<p style="font-family:'IBM Plex Sans',sans-serif; font-size:0.95rem;
-           color:#5a5f72; margin-top:-0.4rem; margin-bottom:1.8rem;
-           font-weight:300; line-height:1.6;">
-Upload a local file or paste a YouTube URL.<br>
-Get a timestamped transcript — download in the format you need.
-</p>
-""", unsafe_allow_html=True)
-
-st.divider()
-
-
-# ── Input section ──────────────────────────────────────────────────────────────
-st.markdown('<div class="section-label">01 — Input</div>', unsafe_allow_html=True)
-
-data = st.file_uploader(
-    label="Drop audio or video file",
-    type=["mp3", "mp4", "wav", "m4a", "ogg", "webm", "mkv"],
-    help="Supported: mp3, mp4, wav, m4a, ogg, webm, mkv — max 500 MB"
+st.markdown(
+    """
+    <style>
+    :root {
+      --ink: #eef1f7;
+      --muted: #9aa3b5;
+      --surface: #171b24;
+      --line: #2c3442;
+      --accent: #d6f45f;
+    }
+    .block-container { max-width: 820px; padding-top: 4rem; }
+    h1, h2, h3 { letter-spacing: -0.035em; }
+    .eyebrow {
+      color: var(--accent); font-size: .76rem; font-weight: 700;
+      letter-spacing: .12em; text-transform: uppercase; margin-bottom: .5rem;
+      display: block; line-height: 1.4; padding-top: .25rem;
+    }
+    .lede { color: var(--muted); font-size: 1.05rem; line-height: 1.65; }
+    .privacy {
+      border: 1px solid var(--line); background: var(--surface);
+      border-radius: .7rem; padding: .85rem 1rem; margin: 1.25rem 0;
+      color: var(--muted);
+    }
+    .transcript {
+      background: #10131a; border: 1px solid var(--line); border-radius: .7rem;
+      padding: 1rem 1.2rem; max-height: 380px; overflow-y: auto;
+    }
+    .segment { display: grid; grid-template-columns: 9rem 1fr; gap: 1rem;
+      padding: .55rem 0; border-bottom: 1px solid #222936; }
+    .segment:last-child { border: 0; }
+    .timestamp { color: var(--accent); font-family: monospace; font-size: .8rem; }
+    .copy { color: var(--ink); line-height: 1.55; }
+    @media (max-width: 560px) {
+      .segment { grid-template-columns: 1fr; gap: .25rem; }
+    }
+    </style>
+    """,
+    unsafe_allow_html=True,
 )
 
-st.markdown('<div class="or-divider">or</div>', unsafe_allow_html=True)
 
-url_video = st.text_input(
-    label="YouTube URL",
-    placeholder="https://www.youtube.com/watch?v=...",
+@st.cache_data(ttl=5)
+def get_health() -> dict | None:
+    try:
+        response = requests.get(f"{API_URL}/health", timeout=3)
+        response.raise_for_status()
+        return response.json()
+    except requests.RequestException:
+        return None
+
+
+def submit_file(filename: str, content: bytes, media_type: str) -> str:
+    response = requests.post(
+        f"{API_URL}/transcribe",
+        files={"file": (filename, content, media_type)},
+        timeout=30,
+    )
+    if response.status_code >= 400:
+        detail = response.json().get("detail", {})
+        message = detail.get("message") if isinstance(detail, dict) else str(detail)
+        raise RuntimeError(message or "The API rejected this upload.")
+    return response.json()["job_id"]
+
+
+def wait_for_result(job_id: str, timeout_seconds: int = 300) -> dict:
+    deadline = time.monotonic() + timeout_seconds
+    status_box = st.empty()
+    while time.monotonic() < deadline:
+        response = requests.get(f"{API_URL}/transcribe/{job_id}", timeout=10)
+        response.raise_for_status()
+        job = response.json()
+        current_status = job["status"]
+        status_box.info(f"Job status: {current_status}")
+        if current_status == "completed":
+            status_box.empty()
+            return job["result"]
+        if current_status == "failed":
+            raise RuntimeError(job.get("error") or "Transcription failed.")
+        time.sleep(POLL_INTERVAL)
+    raise TimeoutError("Transcription is still running. Check the job through the API.")
+
+
+def render_result(result: dict) -> None:
+    st.success("Transcript ready")
+    columns = st.columns(4, gap="large")
+    columns[0].metric("Duration", result["duration_text"])
+    columns[1].metric("Segments", len(result["segments"]))
+    columns[2].metric("Words", result["word_count"])
+    columns[3].metric("Language", result["language"])
+
+    st.subheader("Timestamped transcript")
+    rendered_segments = []
+    for segment in result["segments"]:
+        rendered_segments.append(
+            '<div class="segment">'
+            f'<span class="timestamp">{html.escape(segment["start_text"])} → '
+            f"{html.escape(segment['end_text'])}</span>"
+            f'<span class="copy">{html.escape(segment["text"])}</span>'
+            "</div>"
+        )
+    st.markdown(
+        f'<div class="transcript">{"".join(rendered_segments)}</div>',
+        unsafe_allow_html=True,
+    )
+
+    st.subheader("Download")
+    txt_col, json_col, md_col = st.columns(3)
+    stem = Path(result["filename"]).stem or "transcript"
+    txt_col.download_button(
+        "TXT",
+        transcript_txt(result),
+        file_name=f"{stem}.txt",
+        mime="text/plain",
+        use_container_width=True,
+    )
+    json_col.download_button(
+        "JSON",
+        transcript_json(result),
+        file_name=f"{stem}.json",
+        mime="application/json",
+        use_container_width=True,
+    )
+    md_col.download_button(
+        "Markdown",
+        transcript_markdown(result),
+        file_name=f"{stem}.md",
+        mime="text/markdown",
+        use_container_width=True,
+    )
+    st.caption(f"Engine: {result['engine']}")
+
+
+st.markdown('<div class="eyebrow">Audio and video → timestamped text</div>', unsafe_allow_html=True)
+st.title("Private Local Transcriber")
+st.markdown(
+    '<p class="lede">Upload a meeting, interview, lecture, or short video. '
+    "The app creates a durable background job and returns a transcript you can "
+    "review or export.</p>",
+    unsafe_allow_html=True,
 )
 
-# Reset result when input changes
-_input_sig = (data.name if data else "", url_video.strip())
-if st.session_state.get("_input_sig") != _input_sig and st.session_state.get("show_result"):
-    st.session_state["show_result"] = False
-    st.session_state.pop("transcript", None)
-    st.session_state.pop("jobs_id", None)
-if data or url_video.strip():
-    st.session_state["_input_sig"] = _input_sig
+health = get_health()
+if health:
+    mode_label = "Deterministic demo" if health["mode"] == "demo" else "Local Whisper"
+    st.markdown(
+        '<div class="privacy">🔒 Files are processed by your own API and removed '
+        f"after the job finishes. <strong>Mode:</strong> {mode_label} · "
+        f"<strong>Upload limit:</strong> {health['max_upload_mb']} MB.</div>",
+        unsafe_allow_html=True,
+    )
+    if health["mode"] == "demo":
+        st.info(
+            "Demo mode returns a fixed fictional transcript so the complete job and "
+            "export workflow can be reviewed without downloading an ML model. Set "
+            "`TRANSCRIBER_MODE=local` for real speech recognition."
+        )
+else:
+    st.error(
+        f"API unavailable at `{API_URL}`. Start it with `uvicorn main:app`, "
+        "or set `API_URL` for Docker."
+    )
 
+st.subheader("1. Choose a file")
+uploaded = st.file_uploader(
+    "Audio or video",
+    type=["aac", "avi", "flac", "m4a", "mkv", "mov", "mp3", "mp4", "ogg", "opus", "wav", "webm"],
+    help="Supported audio and video formats. Large files take longer on CPU.",
+)
+use_sample = st.checkbox(
+    "Use the bundled demo audio fixture",
+    value=False,
+    disabled=not SAMPLE_PATH.exists(),
+)
 
-# ── Options section ────────────────────────────────────────────────────────────
-st.divider()
-st.markdown('<div class="section-label">02 — Output format</div>', unsafe_allow_html=True)
+if uploaded:
+    size_mb = len(uploaded.getvalue()) / (1024 * 1024)
+    st.caption(f"Selected: {uploaded.name} · {size_mb:.2f} MB · {uploaded.type}")
+elif use_sample:
+    st.caption("Selected: northstar-demo.wav · repository-owned generated audio fixture")
 
-col1, col2, col3 = st.columns(3)
-with col1:
-    fmt_txt  = st.checkbox("TXT",      value=True)
-with col2:
-    fmt_json = st.checkbox("JSON")
-with col3:
-    fmt_md   = st.checkbox("Markdown")
-
-st.markdown("<div style='margin-top:0.3rem'></div>", unsafe_allow_html=True)
-
-
-# ── Submit ─────────────────────────────────────────────────────────────────────
-st.divider()
-st.markdown('<div class="section-label">03 — Run</div>', unsafe_allow_html=True)
-
-has_input = bool(data) or bool(url_video.strip())
-
-transcribe_btn = st.button(
-    "⚡  Get Transcript",
+st.subheader("2. Transcribe")
+if st.button(
+    "Start transcription",
     type="primary",
-    disabled=not has_input,
     use_container_width=True,
-    help="Upload a file or paste a URL first" if not has_input else None,
-)
-
-if not has_input:
-    st.markdown("""
-    <p style="font-family:'IBM Plex Mono',monospace; font-size:0.72rem;
-               color:#5a5f72; margin-top:0.5rem; text-align:center;">
-        ↑ add a file or URL to enable
-    </p>
-    """, unsafe_allow_html=True)
-
-
-# ── Simulated result (shown when button is pressed) ───────────────────────────
-MOCK_TRANSCRIPT = [
-    ("00:00:00", "00:00:04", "Welcome to the lecture on distributed systems."),
-    ("00:00:04", "00:00:09", "Today we'll cover the CAP theorem and its practical implications."),
-    ("00:00:09", "00:00:15", "The CAP theorem states that a distributed system can only guarantee two out of three properties:"),
-    ("00:00:15", "00:00:20", "consistency, availability, and partition tolerance."),
-    ("00:00:20", "00:00:27", "Let's start with consistency — every read receives the most recent write or an error."),
-    ("00:00:27", "00:00:34", "Availability means every request receives a non-error response, though it may not be the latest."),
-    ("00:00:34", "00:00:41", "Partition tolerance: the system continues to operate despite network partitions between nodes."),
-    ("00:00:41", "00:00:49", "In practice, partition tolerance is non-negotiable in real distributed environments."),
-    ("00:00:49", "00:00:56", "So the real tradeoff is between consistency and availability when partitions occur."),
-    ("00:00:56", "00:01:04", "Systems like Cassandra choose availability — you get eventual consistency instead."),
-    ("00:01:04", "00:01:11", "Systems like HBase choose consistency — you may get errors during a partition."),
-    ("00:01:11", "00:01:19", "Understanding your system's requirements determines which tradeoff is acceptable."),
-]
-
-if transcribe_btn or st.session_state.get("show_result"):
-    st.session_state["show_result"] = True
-
-    st.divider()
-
-    with st.spinner("Transcribing..."):
-        if st.session_state.get("transcript"):
-            pass  # already done, fall through to result section
-        elif not st.session_state.get("jobs_id"):
-            # no job yet — submit
-            if data:
-                response = requests.post('http://api:8000/transcribe', files={"file": (data.name, data, data.type)}, headers={"X-Source": "ui"})
-            else:
-                response = requests.post('http://api:8000/transcribe', params={"url": url_video.strip()}, headers={"X-Source": "ui"})
-            st.session_state["jobs_id"] = response.json()["jobs_id"]
-            time.sleep(3)
-            st.rerun()
+    disabled=not health or (not uploaded and not use_sample),
+):
+    st.session_state.pop("result", None)
+    try:
+        if uploaded:
+            filename = uploaded.name
+            content = uploaded.getvalue()
+            media_type = uploaded.type or "application/octet-stream"
         else:
-            # job exists — poll status
-            job_id = st.session_state["jobs_id"]
-            response = requests.get(f'http://api:8000/transcribe/{job_id}')
-            result = response.json()
+            filename = SAMPLE_PATH.name
+            content = SAMPLE_PATH.read_bytes()
+            media_type = "audio/wav"
 
-            if result.get("message"):
-                if result.get('message') == 'the process is failed':
-                    st.session_state.pop("jobs_id", None)
-                    st.error("Transcription failed.")
-                    st.stop()
-                else:
-                    time.sleep(3)
-                    st.rerun()
-            elif result.get('result'):
-                st.session_state['transcript'] = result['result']
-                st.session_state.pop('jobs_id', None)
-                st.rerun()
+        with st.spinner("Submitting and processing the job…"):
+            job_id = submit_file(filename, content, media_type)
+            st.session_state["result"] = wait_for_result(job_id)
+    except (requests.RequestException, RuntimeError, TimeoutError) as exc:
+        st.error(str(exc))
 
-        if not st.session_state.get('transcript'):
-            st.stop()
-                
+if st.session_state.get("result"):
+    st.divider()
+    render_result(st.session_state["result"])
+    if st.button("Process another file"):
+        st.session_state.pop("result", None)
+        st.rerun()
 
-                
-            # if "done" — fall through, show result below
-
-    transcript_data = st.session_state["transcript"]
-    segments = transcript_data["transcript"]
-    duration   = transcript_data.get("duration", "—")
-    language   = transcript_data.get("language", "—")
-    word_count = sum(len(s["content"].split()) for s in segments)
-
-    st.success("✓  Transcript ready")
-
-    # ── Stats bar ──────────────────────────────────────────────────────────
-    st.markdown(f"""
-    <div class="stats-row">
-        <div class="stat-item">
-            <span class="stat-value">{duration}</span>
-            <span class="stat-label">Duration</span>
-        </div>
-        <div class="stat-item">
-            <span class="stat-value">{len(segments)}</span>
-            <span class="stat-label">Segments</span>
-        </div>
-        <div class="stat-item">
-            <span class="stat-value">{word_count}</span>
-            <span class="stat-label">Words</span>
-        </div>
-        <div class="stat-item">
-            <span class="stat-value">{language}</span>
-            <span class="stat-label">Language</span>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
-
-    # ── Transcript viewer ──────────────────────────────────────────────────
-    st.markdown('<div class="section-label" style="margin-top:1.2rem">04 — Transcript</div>',
-                unsafe_allow_html=True)
-
-    lines_html = ""
-    for seg in segments:
-        safe_text = _html.escape(seg["content"])
-        lines_html += f"""
-        <div class="transcript-line">
-            <span class="transcript-ts">[{seg["start_t"]} → {seg["end_t"]}]</span>
-            <span class="transcript-text">{safe_text}</span>
-        </div>"""
-
-    st.markdown(f'<div class="transcript-box">{lines_html}</div>', unsafe_allow_html=True)
-
-    st.markdown("""
-    <p style="font-family:'IBM Plex Mono',monospace; font-size:0.65rem;
-               color:#5a5f72; margin-top:0.4rem;">
-        scroll to read · max 320px height
-    </p>
-    """, unsafe_allow_html=True)
-
-    # ── Download section ───────────────────────────────────────────────────
-    st.markdown('<div class="section-label" style="margin-top:1.4rem">05 — Download</div>',
-                unsafe_allow_html=True)
-
-    out_txt  = "\n".join(
-        f"[{s['start_t']} → {s['end_t']}]  {s['content']}" for s in segments
-    )
-    out_json = json.dumps(
-        [{"start": s["start_t"], "end": s["end_t"], "text": s["content"]} for s in segments],
-        ensure_ascii=False, indent=2
-    )
-    out_md   = "\n".join(
-        f"**[{s['start_t']} → {s['end_t']}]** {s['content']}" for s in segments
-    )
-
-    selected_formats = []
-    if fmt_txt:  selected_formats.append(("TXT",      out_txt,  "transcript.txt",  "text/plain"))
-    if fmt_json: selected_formats.append(("JSON",     out_json, "transcript.json", "application/json"))
-    if fmt_md:   selected_formats.append(("Markdown", out_md,   "transcript.md",   "text/markdown"))
-
-    if not selected_formats:
-        st.warning("Select at least one output format above.")
-    else:
-        dl_cols = st.columns(len(selected_formats))
-        for col, (label, content, fname, mime) in zip(dl_cols, selected_formats):
-            with col:
-                st.download_button(
-                    label=f"↓  {label}",
-                    data=content,
-                    file_name=fname,
-                    mime=mime,
-                    use_container_width=True,
-                )
-
-
-# ── Footer ─────────────────────────────────────────────────────────────────────
-st.markdown("""
-<div style="margin-top:3rem; padding-top:1.2rem;
-            border-top:1px solid #272a32;
-            font-family:'IBM Plex Mono',monospace;
-            font-size:0.65rem; color:#2e3140;
-            display:flex; justify-content:space-between;">
-    <span>transcriber · local</span>
-    <span>powered by whisper</span>
-</div>
-""", unsafe_allow_html=True)
+st.divider()
+st.caption(
+    "Portfolio release: single-process worker queue and SQLite persistence. "
+    "Demo mode is deterministic; local mode uses faster-whisper."
+)

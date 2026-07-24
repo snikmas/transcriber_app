@@ -1,26 +1,30 @@
-import pytest
-from unittest.mock import MagicMock, patch
 from pathlib import Path
-import src.transcriber as transcriber
+from unittest.mock import Mock, patch
 
-# 1. transcribe_file()
-# - test_transcribe_file_deafult_result
-# - test_trasncribe_file_none
-# - test_trasncribe_file_wrong_path
+from src.transcriber import TranscriptionEngine
 
-def test_transcribe_file_default_result():
-    fake_file = MagicMock(spec=Path)
-    fake_file.return_value = True
 
-    fake_segment = MagicMock()
-    fake_info = MagicMock()
+def test_demo_engine_is_deterministic(settings, tmp_path: Path):
+    engine = TranscriptionEngine(settings)
 
-    with patch('src.transcriber.model') as mock_model:
-        mock_model.transcribe.return_value = ([fake_segment], fake_info)
+    first = engine.transcribe(tmp_path / "one.wav", "one.wav")
+    second = engine.transcribe(tmp_path / "two.wav", "two.wav")
 
-        segments, info = transcriber.transcribe_file(fake_file)
-    
-    assert segments == [fake_segment]
-    assert info == fake_info
+    assert first["text"] == second["text"]
+    assert first["filename"] == "one.wav"
+    assert first["engine"] == "deterministic-demo"
 
-    fake_file.unlink.assert_called_once()
+
+def test_video_preparation_uses_unique_sibling_audio(tmp_path: Path):
+    input_path = tmp_path / "input.mp4"
+    input_path.write_bytes(b"video")
+    completed = Mock()
+    completed.stderr = b""
+
+    with patch("src.transcriber.subprocess.run", return_value=completed) as run:
+        output = TranscriptionEngine._prepare_media(input_path)
+
+    assert output == tmp_path / "audio.wav"
+    command = run.call_args.args[0]
+    assert str(input_path) in command
+    assert str(output) in command
