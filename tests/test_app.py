@@ -33,6 +33,11 @@ def test_health_exposes_demo_readiness(client):
         "model": "tiny",
         "model_readiness": "demo-ready",
         "max_upload_mb": 1,
+        "analysis_mode": "demo",
+        "analysis_provider": "demo",
+        "analysis_protocol": "demo",
+        "analysis_readiness": "demo-ready",
+        "analysis_configured": True,
     }
 
 
@@ -55,6 +60,17 @@ def test_completed_result_survives_repository_read(client):
 
     assert reread.status_code == 200
     assert reread.json()["result"] == completed["result"]
+
+
+def test_jobs_get_alias_matches_transcribe_route(client):
+    job_id = submit_demo_job(client)
+    wait_for_terminal_job(client, job_id)
+
+    legacy = client.get(f"/transcribe/{job_id}")
+    canonical = client.get(f"/jobs/{job_id}")
+
+    assert canonical.status_code == legacy.status_code == 200
+    assert canonical.json() == legacy.json()
 
 
 def test_list_and_delete_job(client):
@@ -88,6 +104,10 @@ def test_missing_job_is_stable_404(client):
 
     assert response.status_code == 404
     assert response.json()["detail"]["code"] == "job_not_found"
+
+    alias_response = client.get("/jobs/not-a-job")
+    assert alias_response.status_code == 404
+    assert alias_response.json()["detail"]["code"] == "job_not_found"
 
 
 def test_rejects_unsupported_extension(client):
