@@ -8,7 +8,8 @@ __pycache__/
 .streamlit/secrets.toml
 data/
 *.db
-PORTFOLIO_TODO.md
+/PROJECT_DESCRIPTION.md
+/PORTFOLIO_TODO.md
 .gstack/
 .agent/
 /gif.gif

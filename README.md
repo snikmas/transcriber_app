@@ -112,7 +112,6 @@ The automated checks are offline: they do not call paid providers or use
 personal recordings.
 
 Developer details: [`DEVELOPER_SUMMARY.md`](DEVELOPER_SUMMARY.md) ·
-[`PROJECT_DESCRIPTION.md`](PROJECT_DESCRIPTION.md) ·
 [`RELEASE_NOTES.md`](RELEASE_NOTES.md)
 
 ## Current boundaries
