@@ -100,6 +100,7 @@ class _HttpProvider:
             preset_host = urlsplit(base_url).hostname in {
                 "api.openai.com",
                 "api.anthropic.com",
+                "api.deepseek.com",
                 "openrouter.ai",
             }
             self.base_url = validate_provider_url(
@@ -332,9 +333,9 @@ class OpenRouterProvider(OpenAIChatProvider):
         super().__init__(api_key=api_key, base_url=base_url, provider_id="openrouter", **kwargs)
 
 
-class PackyAPIProvider(OpenAIChatProvider):
-    def __init__(self, *, api_key: str, base_url: str, **kwargs: Any):
-        super().__init__(api_key=api_key, base_url=base_url, provider_id="packyapi", **kwargs)
+class DeepSeekProvider(OpenAIChatProvider):
+    def __init__(self, *, api_key: str, base_url: str = "https://api.deepseek.com", **kwargs: Any):
+        super().__init__(api_key=api_key, base_url=base_url, provider_id="deepseek", **kwargs)
 
 
 class CustomOpenAIProvider(OpenAIChatProvider):
@@ -389,10 +390,10 @@ def provider_from_config(
         return OpenRouterProvider(
             api_key=api_key, base_url=base_url or "https://openrouter.ai/api/v1", **kwargs
         )
-    if selected == "packyapi":
-        if not base_url:
-            raise ProviderError("unsafe_url", "PackyAPI base URL must be configured.")
-        return PackyAPIProvider(api_key=api_key, base_url=base_url, **kwargs)
+    if selected == "deepseek":
+        return DeepSeekProvider(
+            api_key=api_key, base_url=base_url or "https://api.deepseek.com", **kwargs
+        )
     if selected == "custom_openai":
         return CustomOpenAIProvider(api_key=api_key, base_url=base_url or "", **kwargs)
     if selected == "custom_anthropic":

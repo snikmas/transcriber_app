@@ -10,3 +10,6 @@ data/
 *.db
 PORTFOLIO_TODO.md
 .gstack/
+.agent/
+/gif.gif
+/video.mp4

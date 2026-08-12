@@ -25,10 +25,10 @@ stage and removes each job's media directory in a `finally` block.
 
 ### Transcription engines
 
-`src/transcriber.py` has two modes:
+`src/transcriber.py` has a production engine and a test engine:
 
-- `demo`: deterministic fictional output with no model dependency
-- `local`: lazy faster-whisper model loading and actual inference
+- `local`: the product default, with lazy faster-whisper loading and actual inference
+- `demo`: deterministic fictional output retained only for offline automated tests
 
 Video files are converted to 16 kHz mono WAV with `ffmpeg` inside their isolated
 job directory. Audio files go directly to the engine.
@@ -43,11 +43,11 @@ separate from the authoritative transcript, so provider/schema failure becomes
 `partial_success` and can be retried without retranscription.
 
 `src/analysis/providers.py` normalizes Demo, OpenAI Responses, Anthropic
-Messages, OpenRouter, PackyAPI, and custom OpenAI/Anthropic-compatible calls.
-`src/analysis/urls.py` rejects unsafe custom destinations. `src/analysis/secrets.py`
-and the request path keep one-time keys out of SQLite, responses, exports, and
-logs. PackyAPI requires an account-supplied base URL; the adapter does not guess
-one.
+Messages, OpenRouter, DeepSeek, and custom OpenAI/Anthropic-compatible calls.
+`src/analysis/urls.py` rejects unsafe custom destinations. Provider credentials
+are resolved only from the API server environment and never enter public
+requests, SQLite, responses, exports, or logs. DeepSeek uses its fixed official
+endpoint; custom URLs pass through the SSRF guard before a request is sent.
 
 ### Streamlit client
 

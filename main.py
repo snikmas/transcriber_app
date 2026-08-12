@@ -79,17 +79,12 @@ JobResponse.model_rebuild()
 
 
 class AnalysisRequest(BaseModel):
-    """Optional per-request provider settings.
-
-    ``api_key`` is consumed in memory while the worker runs and is deliberately
-    absent from all persistence and response models.
-    """
+    """Optional provider settings; credentials are resolved only on the API server."""
 
     provider: str | None = None
     model: str | None = None
     output_language: str | None = None
     base_url: str | None = None
-    api_key: str | None = None
 
 
 class ProviderTestResponse(BaseModel):
@@ -215,17 +210,15 @@ def _analysis_service(
     output_language = (
         request.output_language or settings.analysis_output_language
     ).strip() or "auto"
-    key = request.api_key or provider_key(settings, provider_name)
+    key = provider_key(settings, provider_name)
     mode = settings.analysis_mode.strip().lower()
     if provider_name == "demo":
         key = key or "demo"
-    elif mode != "live" and not request.api_key:
-        raise ValueError("analysis_live_mode_required")
     if not key:
         raise ValueError("provider_key_missing")
     if not model:
         raise ValueError("analysis_model_missing")
-    if mode == "live" and not request.api_key:
+    if mode == "live":
         # This validates the environment-controlled limits and the configured
         # key without ever putting the key into a job or response.
         validate_live_analysis(settings, provider=provider_name)
@@ -455,7 +448,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                     "message": "An analysis model is required.",
                 },
             )
-        key = payload.api_key or provider_key(settings, provider_name)
+        key = provider_key(settings, provider_name)
         if provider_name == "demo":
             key = key or "demo"
         elif not key:
@@ -469,7 +462,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             )
 
         # Environment-controlled live limits are checked before any network call.
-        if analysis_mode == "live" and not payload.api_key:
+        if analysis_mode == "live":
             try:
                 validate_live_analysis(settings, provider=provider_name)
             except ValueError as exc:
@@ -763,7 +756,6 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 payload.model,
                 payload.output_language,
                 payload.base_url,
-                payload.api_key,
             )
         )
         analysis_service = None
@@ -786,7 +778,6 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 code = exc.code if isinstance(exc, ProviderError) else str(exc)
                 messages = {
                     "provider_key_missing": "A provider key is required for live analysis.",
-                    "analysis_live_mode_required": "Live analysis is not enabled.",
                     "analysis_model_missing": "An analysis model is required.",
                 }
                 raise _analysis_error(code, messages.get(code, str(exc))) from None

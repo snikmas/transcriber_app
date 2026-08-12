@@ -9,7 +9,9 @@ description = "Portfolio-ready private audio and video transcription service"
 requires-python = ">=3.12,<3.14"
 dependencies = [
   "fastapi>=0.116,<1",
+  "httpx[socks]>=0.28,<1",
   "pydantic>=2.11,<3",
+  "python-dotenv>=1.0,<2",
   "python-multipart>=0.0.20,<1",
   "requests>=2.32,<3",
   "streamlit>=1.47,<2",
@@ -19,12 +21,10 @@ dependencies = [
 [project.optional-dependencies]
 local = [
   "faster-whisper>=1.2,<2",
-  "socksio>=1.0,<2",
 ]
 
 [dependency-groups]
 dev = [
-  "httpx>=0.28,<1",
   "pytest>=8.4,<9",
   "ruff>=0.12,<1",
 ]

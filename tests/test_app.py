@@ -3,6 +3,25 @@ import time
 from fastapi.testclient import TestClient
 
 from main import create_app
+from src.ui_state import JobStatusView, visible_history_jobs
+
+
+class FakeStatusSlot:
+    def __init__(self) -> None:
+        self.message = ""
+
+    def info(self, message: str) -> None:
+        self.message = message
+
+
+class FakeStatusContainer:
+    def __init__(self) -> None:
+        self.empty_calls = 0
+        self.slot = FakeStatusSlot()
+
+    def empty(self) -> FakeStatusSlot:
+        self.empty_calls += 1
+        return self.slot
 
 
 def submit_demo_job(client, filename: str = "demo.wav") -> str:
@@ -12,6 +31,27 @@ def submit_demo_job(client, filename: str = "demo.wav") -> str:
     )
     assert response.status_code == 202
     return response.json()["job_id"]
+
+
+def test_history_hides_jobs_from_previous_browser_sessions_by_default():
+    jobs = [
+        {"job_id": "current", "filename": "current.wav"},
+        {"job_id": "saved", "filename": "saved.wav"},
+    ]
+
+    assert visible_history_jobs(jobs, {"current"}, include_saved=False) == [jobs[0]]
+    assert visible_history_jobs(jobs, {"current"}, include_saved=True) == jobs
+
+
+def test_job_status_reuses_one_placeholder_for_polling_updates():
+    container = FakeStatusContainer()
+    status_view = JobStatusView(container)
+
+    status_view.show("queued", "not_requested")
+    status_view.show("completed", "processing")
+
+    assert container.empty_calls == 1
+    assert container.slot.message == "Transcription: completed · Analysis: processing"
 
 
 def wait_for_terminal_job(client, job_id: str) -> dict:

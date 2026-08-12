@@ -1,6 +1,11 @@
 import time
 import wave
+from dataclasses import replace
 from pathlib import Path
+
+import main
+from src.analysis.providers import ProviderResponse
+from src.analysis.statuses import ProviderProtocol
 
 
 def test_demo_audio_fixture_has_reproducible_demo_length():
@@ -25,7 +30,7 @@ def _completed_job(client) -> str:
 def test_demo_provider_connection_test_is_redacted_and_categorized(client):
     response = client.post(
         "/providers/test",
-        json={"provider": "demo", "model": "deterministic-meeting-v1", "api_key": "secret"},
+        json={"provider": "demo", "model": "deterministic-meeting-v1"},
     )
 
     assert response.status_code == 200
@@ -40,6 +45,63 @@ def test_provider_test_rejects_missing_live_key(client):
 
     assert response.status_code == 422
     assert response.json()["detail"]["code"] == "provider_key_missing"
+
+
+def test_client_supplied_key_is_ignored_and_never_echoed(client):
+    secret = "client-keys-are-not-accepted"
+
+    response = client.post(
+        "/providers/test",
+        json={"provider": "openai", "model": "gpt", "api_key": secret},
+    )
+
+    assert response.status_code == 422
+    assert response.json()["detail"]["code"] == "provider_key_missing"
+    assert secret not in response.text
+
+
+def test_selected_provider_uses_server_environment_key_when_ui_key_is_blank(client, monkeypatch):
+    secret = "server-side-deepseek-key"
+    captured = {}
+
+    class FakeDeepSeekProvider:
+        provider_id = "deepseek"
+        protocol = ProviderProtocol.OPENAI_CHAT
+
+        def generate(self, messages, *, model, timeout):
+            del messages, timeout
+            return ProviderResponse(
+                structured={
+                    "summary": "Environment key accepted.",
+                    "decisions": [],
+                    "action_items": [],
+                    "open_questions": [],
+                    "follow_ups": [],
+                },
+                actual_model=model,
+            )
+
+    def fake_provider_from_config(provider, *, api_key, **kwargs):
+        del kwargs
+        captured.update(provider=provider, api_key=api_key)
+        return FakeDeepSeekProvider()
+
+    client.app.state.settings = replace(
+        client.app.state.settings,
+        analysis_mode="demo",
+        deepseek_api_key=secret,
+    )
+    monkeypatch.setattr(main, "provider_from_config", fake_provider_from_config)
+    job_id = _completed_job(client)
+
+    response = client.post(
+        f"/jobs/{job_id}/analysis",
+        json={"provider": "deepseek", "model": "deepseek-v4-flash"},
+    )
+
+    assert response.status_code == 202
+    assert captured == {"provider": "deepseek", "api_key": secret}
+    assert secret not in response.text
 
 
 def test_job_export_allowlist_covers_all_server_formats(client):

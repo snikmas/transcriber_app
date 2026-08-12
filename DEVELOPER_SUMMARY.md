@@ -39,9 +39,9 @@ end in `partial_success` without removing a good transcript.
 | `src/database/database.py` | SQLite schema/migration, status composition, redacted errors, cascade delete |
 | `src/analysis/schemas.py` | Pydantic MeetingAnalysis contract and timestamp evidence |
 | `src/analysis/service.py` | Chunking, bounded retries, synthesis, schema-validation boundary |
-| `src/analysis/providers.py` | Demo, OpenAI, Anthropic, OpenRouter, PackyAPI, and custom adapters |
+| `src/analysis/providers.py` | Demo, OpenAI, Anthropic, OpenRouter, DeepSeek, and custom adapters |
 | `src/analysis/urls.py` | HTTPS/custom URL and private-destination checks |
-| `src/analysis/secrets.py` | One-time in-memory credential leases (no SQLite persistence) |
+| `src/analysis/secrets.py` | Standalone tested lease utility; current API uses environment keys |
 | `src/exports.py` | TXT, JSON, SRT, combined JSON, and Meeting Notes Markdown serializers |
 | `samples/meeting_fixture.py` | Fictional transcript/analysis data used by offline tests |
 | `compose.yaml` / `Dockerfile` | API/UI services, health dependency, data/model volumes, ffmpeg runtime |
@@ -83,16 +83,15 @@ end in `partial_success` without removing a good transcript.
 
 ## Providers and configuration
 
-`ANALYSIS_MODE=demo` and `ANALYSIS_PROVIDER=demo` are safe defaults. The UI can
-submit a provider, model, output language, base URL, and one-time key per
-request. Environment-driven live defaults use `ANALYSIS_MODE=live` and one of
-the supported provider keys:
+`ANALYSIS_MODE=live` and `ANALYSIS_PROVIDER=deepseek` are the product defaults. The API
+loads the repository-root `.env` without overriding shell or Compose variables.
+The UI can submit a provider, model, output language, and custom base URL.
+Credentials are backend-only and resolve from the matching server key:
 
 - `openai` → OpenAI Responses API (`OPENAI_API_KEY`)
 - `anthropic` → Anthropic Messages API (`ANTHROPIC_API_KEY`)
 - `openrouter` → OpenAI-compatible chat (`OPENROUTER_API_KEY`)
-- `packyapi` → OpenAI-compatible chat (`PACKYAPI_API_KEY` plus
-  `ANALYSIS_BASE_URL`, because the endpoint is account-specific)
+- `deepseek` → OpenAI-compatible chat (`DEEPSEEK_API_KEY`, official endpoint)
 - `custom_openai` or `custom_anthropic` → explicit custom URL and protocol
 
 `ANALYSIS_TIMEOUT_SECONDS`, `ANALYSIS_MAX_ATTEMPTS`, `ANALYSIS_CHUNK_CHARS`,
@@ -102,10 +101,10 @@ time. Custom URL validation blocks private/reserved destinations unless
 
 ## Secret and data boundary
 
-Provider keys are accepted either from environment or a one-time request body.
-Request keys are used while constructing the provider and are not placed in the
-job queue, SQLite rows, public responses, or exports. Error persistence uses a
-safe allowlist/fallback; logs deliberately record only error type/lifecycle.
+Provider keys are loaded only from the API server environment and are not part
+of the public request model, job queue, SQLite rows, responses, or exports.
+Error persistence uses a safe allowlist/fallback; logs deliberately record only
+error type/lifecycle.
 External providers receive transcript text. Demo and local Whisper keep the
 transcript on the API host, but local model downloads may contact Hugging Face
 unless the model is already cached/offline mode is enabled. Uploaded media is
@@ -134,7 +133,7 @@ The test suite is offline and currently contains 65 test functions plus
 parameterized cases. It exercises upload validation/limits, cleanup and restart
 recovery, SQLite migration and deletion, Demo output, video preparation,
 analysis schemas/parsing/chunking, provider response/error redaction and URL
-safety, one-time secret leases, partial-success/retry, API routes, and every
+safety, backend-only provider credentials, partial-success/retry, API routes, and every
 transcript/combined export format. No test requires a model download, provider
 credential, network call, or personal recording.
 
