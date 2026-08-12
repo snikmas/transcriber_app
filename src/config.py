@@ -6,6 +6,8 @@ from collections.abc import Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from dotenv import load_dotenv
+
 # These limits are part of the analysis input/retry contract.  Keeping them in
 # one place prevents an environment variable from silently expanding the
 # amount of work or data a provider request can consume.
@@ -13,6 +15,7 @@ MAX_ANALYSIS_ATTEMPTS = 3
 MAX_ANALYSIS_CHUNKS = 10
 MAX_ANALYSIS_TEXT_CHARS = 120_000
 MAX_ANALYSIS_TIMEOUT_SECONDS = 300.0
+DEFAULT_ENV_FILE = Path(__file__).resolve().parents[1] / ".env"
 
 
 def _env_bool(name: str, default: bool) -> bool:
@@ -49,7 +52,7 @@ class Settings:
     openai_api_key: str | None = field(default=None, repr=False)
     anthropic_api_key: str | None = field(default=None, repr=False)
     openrouter_api_key: str | None = field(default=None, repr=False)
-    packyapi_api_key: str | None = field(default=None, repr=False)
+    deepseek_api_key: str | None = field(default=None, repr=False)
     analysis_api_key: str | None = field(default=None, repr=False)
 
     def __post_init__(self) -> None:
@@ -66,8 +69,12 @@ class Settings:
         return self.max_upload_mb * 1024 * 1024
 
 
-def load_settings() -> Settings:
-    mode = os.getenv("TRANSCRIBER_MODE", "demo").strip().lower()
+def load_settings(*, env_file: Path | None = DEFAULT_ENV_FILE) -> Settings:
+    if env_file is not None:
+        # Shell/Compose variables keep precedence; .env only supplies missing values.
+        load_dotenv(dotenv_path=env_file, override=False)
+
+    mode = os.getenv("TRANSCRIBER_MODE", "local").strip().lower()
     if mode not in {"demo", "local"}:
         raise ValueError("TRANSCRIBER_MODE must be 'demo' or 'local'.")
 
@@ -126,7 +133,7 @@ def load_settings() -> Settings:
         openai_api_key=os.getenv("OPENAI_API_KEY"),
         anthropic_api_key=os.getenv("ANTHROPIC_API_KEY"),
         openrouter_api_key=os.getenv("OPENROUTER_API_KEY"),
-        packyapi_api_key=os.getenv("PACKYAPI_API_KEY"),
+        deepseek_api_key=os.getenv("DEEPSEEK_API_KEY"),
         analysis_api_key=os.getenv("ANALYSIS_API_KEY"),
     )
 
@@ -199,7 +206,7 @@ def provider_key(settings: Settings, provider: str | None = None) -> str | None:
         "openai": settings.openai_api_key,
         "anthropic": settings.anthropic_api_key,
         "openrouter": settings.openrouter_api_key,
-        "packyapi": settings.packyapi_api_key,
+        "deepseek": settings.deepseek_api_key,
     }
     return keys.get(selected) or settings.analysis_api_key
 

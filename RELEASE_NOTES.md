@@ -16,7 +16,7 @@ transcript and structured meeting notes, and export both.
 - Meeting analysis lifecycle with summary, decisions, action items, open
   questions, follow-ups, schema validation, partial-success preservation, and
   retry without retranscription
-- Provider-neutral Demo, OpenAI, Anthropic, OpenRouter, PackyAPI, and custom
+- Provider-neutral Demo, OpenAI, Anthropic, OpenRouter, DeepSeek, and custom
   OpenAI/Anthropic-compatible adapters
 - Clear local/private-processing and engine-mode labels
 
@@ -28,8 +28,9 @@ transcript and structured meeting notes, and export both.
 - Bounded streaming uploads, sanitized names, and unique job directories
 - Temporary media cleanup on both success and failure
 - Configurable database, upload path, model, device, compute type, and limits
-- One-time provider keys are excluded from job state, responses, exports, and
-  logs; custom provider URLs have an explicit private-destination policy
+- Backend-only provider keys are excluded from public requests, job state,
+  responses, exports, and logs; custom provider URLs have an explicit
+  private-destination policy
 
 ### Delivery
 

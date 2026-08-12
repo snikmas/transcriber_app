@@ -15,26 +15,37 @@ from src.exports import (
     transcript_markdown,
     transcript_txt,
 )
+from src.ui_state import JobStatusView, visible_history_jobs
 
 API_URL = os.getenv("API_URL", "http://localhost:8000").rstrip("/")
 POLL_INTERVAL = float(os.getenv("POLL_INTERVAL_SECONDS", "0.5"))
-SAMPLE_PATH = Path(__file__).resolve().parents[1] / "samples" / "northstar-demo-60s.wav"
 JOB_TIMEOUT_SECONDS = 300
 PROVIDERS = {
-    "Demo": {"id": "demo", "models": ["deterministic-meeting-v1"], "needs_key": False},
-    "OpenAI": {"id": "openai", "models": ["gpt-4o-mini", "gpt-4o"], "needs_key": True},
+    "OpenAI": {
+        "id": "openai",
+        "models": ["gpt-4o-mini", "gpt-4o"],
+        "env_key": "OPENAI_API_KEY",
+    },
     "Anthropic": {
         "id": "anthropic",
         "models": ["claude-3-5-haiku-latest", "claude-3-5-sonnet-latest"],
-        "needs_key": True,
+        "env_key": "ANTHROPIC_API_KEY",
     },
     "OpenRouter": {
         "id": "openrouter",
         "models": ["openai/gpt-4o-mini", "anthropic/claude-3.5-haiku"],
-        "needs_key": True,
+        "env_key": "OPENROUTER_API_KEY",
     },
-    "PackyAPI": {"id": "packyapi", "models": ["gpt-4o-mini"], "needs_key": True},
-    "Custom": {"id": "custom_openai", "models": ["custom-model"], "needs_key": True},
+    "DeepSeek": {
+        "id": "deepseek",
+        "models": ["deepseek-v4-flash", "deepseek-v4-pro"],
+        "env_key": "DEEPSEEK_API_KEY",
+    },
+    "Custom": {
+        "id": "custom_openai",
+        "models": ["custom-model"],
+        "env_key": "ANALYSIS_API_KEY",
+    },
 }
 LANGUAGES = ["auto", "English", "中文", "Русский", "日本語", "Español"]
 
@@ -125,8 +136,6 @@ def get_job(job_id: str) -> dict:
 
 
 def request_analysis(job_id: str, payload: dict[str, str]) -> dict:
-    # The key is sent in this request body only and is never persisted or put
-    # in a URL.  The caller removes it from the one-time widget state.
     response = requests.post(f"{API_URL}/jobs/{job_id}/analysis", json=payload, timeout=30)
     if response.status_code >= 400:
         raise RuntimeError(_message(response, "Analysis could not be started."))
@@ -147,14 +156,14 @@ def test_connection(payload: dict[str, str]) -> dict:
     return response.json()
 
 
-def poll_job(job_id: str, status_box=None) -> dict:
+def poll_job(job_id: str, status_view: JobStatusView | None = None) -> dict:
     deadline = time.monotonic() + JOB_TIMEOUT_SECONDS
     while time.monotonic() < deadline:
         job = get_job(job_id)
         transcription = job.get("transcription_status", job.get("status"))
         analysis = job.get("analysis_status", "not_requested")
-        if status_box is not None:
-            status_box.info(f"Transcription: {transcription} · Analysis: {analysis}")
+        if status_view is not None:
+            status_view.show(transcription, analysis)
         if transcription in {"failed", "completed"} and analysis not in {"queued", "processing"}:
             return job
         time.sleep(POLL_INTERVAL)
@@ -162,12 +171,10 @@ def poll_job(job_id: str, status_box=None) -> dict:
 
 
 def _analysis_payload(
-    provider_label: str, model: str, language: str, api_key: str, base_url: str, protocol: str
+    provider_label: str, model: str, language: str, base_url: str, protocol: str
 ) -> dict[str, str]:
     config = PROVIDERS[provider_label]
     payload = {"provider": config["id"], "model": model.strip(), "output_language": language}
-    if api_key:
-        payload["api_key"] = api_key
     if base_url:
         payload["base_url"] = base_url.strip()
     if provider_label == "Custom":
@@ -282,9 +289,7 @@ st.markdown(
 
 health = get_health()
 if health:
-    mode_label = (
-        "Deterministic Demo (no key required)" if health["mode"] == "demo" else "Local Whisper"
-    )
+    mode_label = "Local Whisper" if health["mode"] == "local" else "Disabled demo mode"
     disclosure = (
         "Demo/local speech and analysis stay on the API host."
         if health.get("analysis_mode") != "live"
@@ -297,11 +302,10 @@ if health:
         f"<strong>Upload limit:</strong> {health['max_upload_mb']} MB.</div>",
         unsafe_allow_html=True,
     )
-    if health["mode"] == "demo":
-        st.info(
-            "Demo mode returns a fixed fictional transcript so the complete job and "
-            "export workflow can be reviewed without downloading an ML model. Set "
-            "`TRANSCRIBER_MODE=local` for real speech recognition."
+    if health["mode"] != "local":
+        st.error(
+            "Real transcription is disabled because the API is running in demo mode. "
+            "Set `TRANSCRIBER_MODE=local` and restart the API."
         )
 else:
     st.error(
@@ -315,63 +319,54 @@ uploaded = st.file_uploader(
     type=["aac", "avi", "flac", "m4a", "mkv", "mov", "mp3", "mp4", "ogg", "opus", "wav", "webm"],
     help="Supported audio and video formats. Large files take longer on CPU.",
 )
-use_sample = st.checkbox(
-    "Use the bundled demo audio fixture",
-    value=False,
-    disabled=not SAMPLE_PATH.exists(),
-)
-
 if uploaded:
     size_mb = len(uploaded.getvalue()) / (1024 * 1024)
     st.caption(f"Selected: {uploaded.name} · {size_mb:.2f} MB · {uploaded.type}")
-elif use_sample:
-    st.caption("Selected: northstar-demo-60s.wav · repository-owned generated audio fixture")
 
 st.subheader("2. Meeting analysis")
+provider_labels = list(PROVIDERS)
+configured_provider = health.get("analysis_provider") if health else None
+default_provider_index = next(
+    (
+        index
+        for index, label in enumerate(provider_labels)
+        if PROVIDERS[label]["id"] == configured_provider
+    ),
+    0,
+)
 provider_label = st.selectbox(
-    "Provider", list(PROVIDERS), help="Demo runs without a key and is deterministic."
+    "Provider",
+    provider_labels,
+    index=default_provider_index,
+    help="Provider credentials are loaded only by the backend.",
 )
 provider = PROVIDERS[provider_label]
 model = st.selectbox("Model", provider["models"])
 language = st.selectbox("Output language", LANGUAGES)
 base_url = ""
 protocol = "OpenAI-compatible"
-if provider_label in {"PackyAPI", "Custom"}:
+if provider_label == "Custom":
     base_url = st.text_input("Provider base URL", placeholder="https://…")
 if provider_label == "Custom":
     protocol = st.selectbox("Custom protocol", ["OpenAI-compatible", "Anthropic Messages"])
-api_key = ""
-if provider["needs_key"]:
-    api_key = st.text_input(
-        "Provider API key (one-time)",
-        type="password",
-        key="one_time_provider_key",
-        help="Used for this request only; it is not saved in job history or the URL.",
-    )
-else:
-    st.caption("Demo: deterministic, no key required.")
-
-if provider_label == "Demo":
-    st.caption("Demo analysis stays local and uses fictional deterministic notes.")
-else:
-    st.warning(
-        "Live analysis sends transcript text to the selected external provider. "
-        "A connection test or analysis request may incur provider cost."
-    )
+env_key_name = provider["env_key"]
+st.caption(f"Credentials are loaded from server-side `{env_key_name}`.")
+st.warning(
+    "Live analysis sends transcript text to the selected external provider. "
+    "A connection test or analysis request may incur provider cost."
+)
 
 if st.button(
     "Test connection",
     help="Runs one minimal request; live providers may charge for it.",
     disabled=not bool(health),
 ):
-    if provider["needs_key"] and not api_key:
-        st.error("Enter a provider key before testing the connection.")
-    elif provider_label in {"PackyAPI", "Custom"} and not base_url.strip():
+    if provider_label == "Custom" and not base_url.strip():
         st.error("Enter the provider base URL before testing the connection.")
     else:
         try:
             check = test_connection(
-                _analysis_payload(provider_label, model, language, api_key, base_url, protocol)
+                _analysis_payload(provider_label, model, language, base_url, protocol)
             )
             if check.get("category") == "ok":
                 st.success("Connection test succeeded.")
@@ -379,57 +374,50 @@ if st.button(
                 st.error(f"Connection test: {check.get('category', 'provider_unavailable')}.")
         except (requests.RequestException, RuntimeError) as exc:
             st.error(str(exc))
-        finally:
-            st.session_state.pop("one_time_provider_key", None)
 
 st.subheader("3. Process")
-can_start = bool(health and (uploaded or use_sample))
+can_start = bool(health and health.get("mode") == "local" and uploaded)
 if st.button(
     "Start transcription and analysis",
     type="primary",
     use_container_width=True,
     disabled=not can_start,
 ):
-    if provider["needs_key"] and not api_key:
-        st.error("Enter a provider key for live analysis, or choose Demo.")
-    elif provider_label in {"PackyAPI", "Custom"} and not base_url.strip():
+    if provider_label == "Custom" and not base_url.strip():
         st.error("Enter the provider base URL for this provider.")
     else:
         try:
-            if uploaded:
-                filename, content, media_type = (
-                    uploaded.name,
-                    uploaded.getvalue(),
-                    uploaded.type or "application/octet-stream",
-                )
-            else:
-                filename, content, media_type = (
-                    SAMPLE_PATH.name,
-                    SAMPLE_PATH.read_bytes(),
-                    "audio/wav",
-                )
+            filename, content, media_type = (
+                uploaded.name,
+                uploaded.getvalue(),
+                uploaded.type or "application/octet-stream",
+            )
             with st.status("Processing job…", expanded=True) as status:
+                status_view = JobStatusView(status)
                 job_id = submit_file(filename, content, media_type)
+                session_job_ids = st.session_state.setdefault("session_job_ids", [])
+                if job_id not in session_job_ids:
+                    session_job_ids.append(job_id)
                 status.write("Upload accepted; waiting for transcription…")
-                job = poll_job(job_id, status)
+                job = poll_job(job_id, status_view)
                 if job.get("transcription_status") == "completed":
                     status.write("Transcript complete; starting meeting analysis…")
-                    payload = _analysis_payload(
-                        provider_label, model, language, api_key, base_url, protocol
-                    )
+                    payload = _analysis_payload(provider_label, model, language, base_url, protocol)
                     request_analysis(job_id, payload)
-                    job = poll_job(job_id, status)
+                    job = poll_job(job_id, status_view)
                 st.session_state["active_job"] = job
                 status.update(label=f"Job {job.get('status', 'finished')}", state="complete")
         except (requests.RequestException, RuntimeError, TimeoutError) as exc:
             st.error(str(exc))
-        finally:
-            # Credentials are one-time request inputs, never history state.
-            st.session_state.pop("one_time_provider_key", None)
 
 
 def render_history() -> None:
     st.subheader("History")
+    show_saved_jobs = st.toggle(
+        "Show jobs from previous sessions",
+        value=False,
+        help="Saved jobs remain in SQLite until you explicitly delete them.",
+    )
     try:
         response = requests.get(f"{API_URL}/jobs?limit=20", timeout=10)
         response.raise_for_status()
@@ -437,8 +425,14 @@ def render_history() -> None:
     except requests.RequestException:
         st.caption("History is unavailable while the API is offline.")
         return
+    if not show_saved_jobs:
+        session_job_ids = set(st.session_state.get("session_job_ids", []))
+        jobs = visible_history_jobs(jobs, session_job_ids, include_saved=False)
     if not jobs:
-        st.caption("No jobs yet.")
+        message = "No jobs in this browser session."
+        if show_saved_jobs:
+            message = "No saved jobs yet."
+        st.caption(message)
         return
     for job in jobs:
         job_id = job.get("job_id", "")
@@ -463,6 +457,9 @@ def render_history() -> None:
                     st.error(_message(response, "The job could not be deleted."))
                 else:
                     st.session_state.pop("pending_delete_job_id", None)
+                    session_job_ids = st.session_state.get("session_job_ids", [])
+                    if pending in session_job_ids:
+                        session_job_ids.remove(pending)
                     if st.session_state.get("active_job", {}).get("job_id") == pending:
                         st.session_state.pop("active_job", None)
                     st.rerun()
@@ -482,23 +479,19 @@ if isinstance(active_job, dict):
         st.session_state.pop("pending_delete_job_id", None)
         st.rerun()
     if active_job.get("analysis_status") == "failed":
-        st.caption("Retry uses current provider settings and never reuses a saved key.")
+        st.caption("Retry uses the current provider settings and server-side credentials.")
         if st.button("Retry analysis with current settings", use_container_width=True):
             try:
-                payload = _analysis_payload(
-                    provider_label, model, language, api_key, base_url, protocol
-                )
+                payload = _analysis_payload(provider_label, model, language, base_url, protocol)
                 retry_analysis(active_job["job_id"], payload)
                 st.session_state["active_job"] = poll_job(active_job["job_id"])
                 st.rerun()
             except (requests.RequestException, RuntimeError, TimeoutError) as exc:
                 st.error(str(exc))
-            finally:
-                st.session_state.pop("one_time_provider_key", None)
 
 render_history()
 st.divider()
 st.caption(
-    "Demo is deterministic and fictional. Live provider keys are one-time request "
-    "inputs and are never included in job state or exports."
+    "Speech recognition runs locally on the API host. Provider credentials are loaded "
+    "only by the API server and are never included in job state or exports."
 )

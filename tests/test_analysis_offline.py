@@ -9,10 +9,10 @@ from src.analysis.providers import (
     AnthropicMessagesProvider,
     CustomAnthropicProvider,
     CustomOpenAIProvider,
+    DeepSeekProvider,
     OpenAIChatProvider,
     OpenAIResponsesProvider,
     OpenRouterProvider,
-    PackyAPIProvider,
     ProviderError,
     ProviderResponse,
     classify_status,
@@ -100,10 +100,13 @@ def _adapter_cases() -> list[object]:
             id="openrouter",
         ),
         pytest.param(
-            "packyapi",
-            PackyAPIProvider,
-            {"choices": [{"message": {"content": '{"summary":"ok"}'}}], "model": "packy"},
-            id="packyapi",
+            "deepseek",
+            DeepSeekProvider,
+            {
+                "choices": [{"message": {"content": '{"summary":"ok"}'}}],
+                "model": "deepseek-v4-flash",
+            },
+            id="deepseek",
         ),
         pytest.param(
             "custom_openai",
@@ -271,7 +274,7 @@ def test_requested_adapters_do_not_follow_redirects(
     ("config_name", "expected_type", "expected_id"),
     [
         ("openrouter", OpenRouterProvider, "openrouter"),
-        ("packyapi", PackyAPIProvider, "packyapi"),
+        ("deepseek", DeepSeekProvider, "deepseek"),
         ("custom_openai", CustomOpenAIProvider, "custom_openai"),
         ("custom_anthropic", CustomAnthropicProvider, "custom_anthropic"),
     ],
@@ -301,15 +304,18 @@ def test_provider_from_config_wires_requested_adapters_offline(
 
 
 def test_provider_from_config_rejects_missing_or_unknown_protocol_without_leaking_key() -> None:
-    with pytest.raises(ProviderError) as missing:
-        provider_from_config("packyapi", api_key=_SECRET, model="requested")
-    assert missing.value.code == "unsafe_url"
-    assert _SECRET not in str(missing.value)
-
     with pytest.raises(ProviderError) as unknown:
         provider_from_config("not-a-provider", api_key=_SECRET, model="requested")
     assert unknown.value.code == "protocol_mismatch"
     assert _SECRET not in str(unknown.value)
+
+
+def test_deepseek_provider_uses_official_default_endpoint() -> None:
+    provider = provider_from_config("deepseek", api_key=_SECRET, model="deepseek-v4-flash")
+
+    assert isinstance(provider, DeepSeekProvider)
+    assert provider.provider_id == "deepseek"
+    assert provider.base_url == "https://api.deepseek.com"
 
 
 @pytest.mark.parametrize(

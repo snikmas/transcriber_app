@@ -11,10 +11,10 @@ upload audio/video -> durable transcription job -> schema-validated meeting anal
 
 The no-key Demo path is deterministic and offline-safe. Local mode uses lazy
 `faster-whisper` inference. Analysis supports a deterministic Demo adapter,
-OpenAI Responses, Anthropic Messages, OpenRouter, PackyAPI through an
-account-supplied OpenAI-compatible base URL, and custom OpenAI/Anthropic
-compatible endpoints. Provider keys are request-scoped or environment-backed,
-never persisted. The current UI includes provider/model/language controls,
+OpenAI Responses, Anthropic Messages, OpenRouter, DeepSeek through its official
+OpenAI-compatible endpoint, and custom OpenAI/Anthropic-compatible endpoints.
+Provider keys are backend-only environment values and are never persisted. The
+current UI includes provider/model/language controls,
 history, retry, deletion, partial-success messaging, meeting notes, and
 combined JSON/Meeting Notes Markdown plus transcript JSON/Markdown/TXT downloads.
 
